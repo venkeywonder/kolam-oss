@@ -1,0 +1,261 @@
+/* ---------- cards ---------- */
+.card{position:absolute;width:260px;background:var(--card-bg,var(--card));border-radius:var(--r,2px);box-shadow:var(--shadow-card);cursor:grab;user-select:none;-webkit-user-select:none;transition:box-shadow .18s var(--ease);contain:layout style}
+/* corners (cards/corners.js): a board setting; sharp is the plain card, and what fills a card to its edge follows the curve */
+#canvas[data-corners=curved] #items .card,#dragLayer[data-corners=curved] .card{--r:10px}
+#canvas[data-corners=rounded] #items .card,#dragLayer[data-corners=rounded] .card{--r:20px}
+/* cards being dragged ride above the side panels (the Unsorted drawer) */
+#dragLayer{position:fixed;width:0;height:0;z-index:46;pointer-events:none}
+#dragLayer>div{position:absolute;left:0;top:0;transform-origin:0 0}
+#dragLayer *{pointer-events:none!important}
+.lk-img,.embed,.t-file video,.sw,.t-image .im{border-radius:var(--r,2px) var(--r,2px) 0 0}
+.t-image .im{overflow:hidden}
+.t-image .im:has(+ .cap:empty:not([contenteditable=true])){border-radius:var(--r,2px)}
+.t-image .cap{border-radius:0 0 var(--r,2px) var(--r,2px)}
+.t-sketch canvas{border-radius:var(--r,2px)}
+.card:active{cursor:grabbing}
+.card.locked,.card.editing{cursor:default}
+.card:hover{box-shadow:var(--shadow-hover)}
+.card.dark{color:#f3f3f5}
+.card.selected,.card.editing{box-shadow:0 0 0 2px var(--select),var(--shadow-hover)}
+.card.dragging{z-index:100000!important;box-shadow:var(--shadow-lift);scale:1.04;will-change:translate,rotate;transition:box-shadow .2s var(--ease),scale .28s var(--spring)}
+.card.dragging,.card.dragging *{cursor:grabbing!important}
+.card.appear{animation:appear .52s ease-out}
+@keyframes appear{0%{opacity:0;scale:.5;rotate:-5deg}55%{opacity:1;scale:1.06;rotate:1.5deg}80%{scale:.985;rotate:-.4deg}100%{scale:1;rotate:0deg}}
+/* the ring that spreads on the board where a card lands or appears */
+.land-ring{position:absolute;pointer-events:none;animation:ring .62s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes ring{from{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 50%,transparent),0 0 0 0 color-mix(in srgb,var(--accent) 25%,transparent)}
+  to{box-shadow:0 0 0 26px transparent,0 0 0 12px transparent}}
+.card.in-col{position:relative;left:auto!important;top:auto!important;width:auto!important;margin-bottom:7px;box-shadow:none;border:1px solid var(--line-2)}
+.card.in-col:hover{box-shadow:0 2px 6px rgba(27,37,54,.08)}
+.card.in-col.selected,.card.in-col.editing{box-shadow:0 0 0 2px var(--select)}
+.card.in-col.dragging{box-shadow:var(--shadow-lift)}
+/* something you're dragging over that would take it: it breathes */
+.card.drop-target{box-shadow:0 0 0 2px var(--accent),0 0 0 7px var(--accent-soft),var(--shadow-hover);animation:want 1.1s ease-in-out infinite}
+@keyframes want{50%{box-shadow:0 0 0 2px var(--accent),0 0 0 11px var(--accent-soft),var(--shadow-hover)}}
+.card.missing{opacity:.6}
+.conn{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--card);border:2px solid var(--ink);opacity:0;transform:scale(.6);transition:opacity .15s,transform .15s var(--spring);cursor:crosshair;z-index:3}
+.conn[data-side=right]{right:-7px;top:50%;margin-top:-6.5px}
+.conn[data-side=left]{left:-7px;top:50%;margin-top:-6.5px}
+.conn[data-side=top]{top:-7px;left:50%;margin-left:-6.5px}
+.conn[data-side=bottom]{bottom:-7px;left:50%;margin-left:-6.5px}
+.card:hover>.conn,.card.selected>.conn{opacity:1;transform:scale(1)}
+.conn:hover{transform:scale(1.25)!important;background:var(--ink)}
+.card.editing>.conn,.card.dragging>.conn,.card.t-column.in-col>.conn,.viewonly .conn,.card.in-col>.conn{display:none!important}
+/* resize (canvas/resize.js): grab any edge or corner; sizes are divided by the zoom (--iz) so they stay the same on screen */
+.rz-set{position:absolute;inset:0;pointer-events:none;z-index:2;--t:calc(12px * var(--iz,1));--c:calc(18px * var(--iz,1))}
+.rz{position:absolute;pointer-events:auto;touch-action:none}
+.rz[data-rz=n],.rz[data-rz=s]{left:var(--c);right:var(--c);height:var(--t);cursor:ns-resize}
+.rz[data-rz=e],.rz[data-rz=w]{top:var(--c);bottom:var(--c);width:var(--t);cursor:ew-resize}
+.rz[data-rz=n]{top:calc(var(--t) / -2)}
+.rz[data-rz=s]{bottom:calc(var(--t) / -2)}
+.rz[data-rz=e]{right:calc(var(--t) / -2)}
+.rz[data-rz=w]{left:calc(var(--t) / -2)}
+.rz.c{width:var(--c);height:var(--c);z-index:1}
+.rz[data-rz=nw]{left:calc(var(--c) / -2);top:calc(var(--c) / -2);cursor:nwse-resize}
+.rz[data-rz=se]{right:calc(var(--c) / -2);bottom:calc(var(--c) / -2);cursor:nwse-resize}
+.rz[data-rz=ne]{right:calc(var(--c) / -2);top:calc(var(--c) / -2);cursor:nesw-resize}
+.rz[data-rz=sw]{left:calc(var(--c) / -2);bottom:calc(var(--c) / -2);cursor:nesw-resize}
+.rz-width .rz.c{cursor:ew-resize}
+/* the edge under the pointer lights up */
+.rz::after{content:"";position:absolute;background:var(--select);border-radius:9px;opacity:0;transition:opacity .12s,scale .18s var(--spring)}
+.rz[data-rz=n]::after,.rz[data-rz=s]::after{left:0;right:0;top:50%;height:calc(2px * var(--iz,1));translate:0 -50%;scale:.6 1}
+.rz[data-rz=e]::after,.rz[data-rz=w]::after{top:0;bottom:0;left:50%;width:calc(2px * var(--iz,1));translate:-50% 0;scale:1 .6}
+.rz:not(.c):hover::after,.rz:not(.c).on::after{opacity:1;scale:1}
+/* corners: small squares on the selected card */
+.rz.c::after{left:50%;top:50%;width:calc(9px * var(--iz,1));height:calc(9px * var(--iz,1));translate:-50% -50%;border-radius:calc(2px * var(--iz,1));background:var(--card);box-shadow:0 0 0 calc(1.5px * var(--iz,1)) var(--select);scale:.4}
+.card:hover>.rz-set .rz.c::after{opacity:1;scale:.7}
+.card.selected>.rz-set .rz.c::after{opacity:1;scale:1}
+.rz.c:hover::after,.rz.c.on::after{opacity:1;scale:1.35;background:var(--select)}
+.card.dragging>.rz-set,.card.in-col>.rz-set,.viewonly .rz-set{display:none}
+.card.resizing{transition:none}
+body.resizing,body.resizing *{cursor:var(--rz-cursor)!important;user-select:none}
+.rz-badge{position:fixed;z-index:130;pointer-events:none;background:var(--ink);color:var(--panel);font:600 11px/1 var(--font);font-variant-numeric:tabular-nums;padding:5px 7px;border-radius:6px;box-shadow:var(--shadow-pop);white-space:nowrap}
+.rz-badge.limit{background:var(--danger);color:#fff}
+.lock-badge{position:absolute;top:-9px;left:-9px;width:20px;height:20px;border-radius:50%;background:var(--ink);color:var(--panel);display:grid;place-items:center;z-index:3;opacity:0;transition:opacity .15s}
+.card:hover>.lock-badge,.card.selected>.lock-badge{opacity:1}
+/* rich text */
+.rt{outline:none;word-wrap:break-word;overflow-wrap:anywhere;line-height:1.5}
+.rt[contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text}
+.rt:empty::before{content:attr(data-ph);color:var(--faint);pointer-events:none}
+.rt>:first-child{margin-top:0}.rt>:last-child{margin-bottom:0}
+.rt h1{font:700 22px/1.25 var(--serif);margin:0 0 8px;letter-spacing:-.01em}
+.rt h2{font:700 17px/1.3 var(--serif);margin:0 0 6px}
+.rt h3{font-size:15px;margin:0 0 6px}
+.rt p{margin:0 0 6px}
+.rt ul,.rt ol{margin:0 0 8px;padding-left:20px}
+.rt li{margin:2px 0}
+.rt blockquote{margin:0 0 8px;padding-left:12px;border-left:3px solid var(--line);color:var(--ink-2)}
+.rt a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+.card.dark .rt a{color:#ffab8a}
+.rt code{background:var(--chip);border-radius:4px;padding:1px 4px;font-size:.92em}
+.t-note .note-body{padding:18px 22px;min-height:52px}
+/* to-do */
+.t-todo{padding:16px 20px 14px}
+.todo-title{font:700 15px/1.4 var(--serif);margin-bottom:8px;outline:none}
+.todo-title:empty::before{content:attr(data-ph);color:var(--faint)}
+.todo-prog{height:3px;background:var(--chip);border-radius:3px;margin-bottom:10px;overflow:hidden}
+.todo-prog i{display:block;height:100%;background:var(--ok);border-radius:3px;transition:width .35s var(--ease)}
+.t-todo ul{list-style:none;margin:0;padding:0}
+.t-todo li{position:relative;display:flex;gap:10px;align-items:flex-start;padding:4px 0}
+.t-todo ul.sorting li{transition:translate .2s cubic-bezier(.2,.8,.2,1)}
+.t-todo ul.sorting li.lifted{transition:none;z-index:2;background:var(--card-bg,var(--card));margin:0 -8px;padding:4px 8px;border-radius:5px;box-shadow:0 6px 18px rgba(20,30,50,.18),0 0 0 1px var(--line);scale:1.02}
+.chk{flex:none;width:16px;height:16px;margin-top:2px;border:1.5px solid var(--ink-2);border-radius:2px;background:var(--card);padding:0;display:grid;place-items:center;transition:background .15s,border-color .15s,transform .15s var(--spring)}
+.chk:hover{border-color:var(--ink)}
+.chk:active{transform:scale(.85)}
+li.done .chk{background:var(--faint);border-color:var(--faint)}
+li.done .chk::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg);animation:tickIn .2s var(--spring)}
+@keyframes tickIn{from{scale:0}}
+.tt{flex:1;min-width:0;outline:none;overflow-wrap:anywhere}
+.tt:empty::before{content:"Add a task…";color:var(--faint)}
+li.done .tt{color:var(--muted)}
+.todo-add{color:var(--faint);font-size:13px;padding:4px 0 0 26px;cursor:pointer}
+.todo-add:hover{color:var(--ink)}
+.viewonly .todo-add,.viewonly .due-add{display:none}
+.t-todo [contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text}
+.due,.due-add{flex:none;border:0;border-radius:4px;font-size:11px;font-weight:600;padding:2px 6px;margin-top:1px;background:var(--chip);color:var(--ink-2);line-height:1.4}
+.due.soon{background:rgba(232,144,31,.16);color:#b86a0d}
+.due.late{background:rgba(224,69,58,.14);color:var(--danger)}
+li.done .due{opacity:.5}
+.due-add{opacity:0;background:none;padding:2px 3px;display:grid;place-items:center;transition:opacity .15s}
+li:hover .due-add{opacity:1}
+/* link + embeds */
+.lk-img{aspect-ratio:1.91/1;background:var(--chip);overflow:hidden}
+/* a link pulled taller: the picture takes the extra room */
+.t-link:not(.in-col){display:flex;flex-direction:column}
+.t-link:not(.in-col)>.lk-img{flex:1 0 auto}
+.lk-img img{width:100%;height:100%;object-fit:cover;display:block}
+.lk-body{padding:14px 18px 16px}
+.lk-title{font-weight:600;line-height:1.35;margin-bottom:4px;overflow-wrap:anywhere}
+.lk-desc{color:var(--ink-2);font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:8px}
+.lk-site{display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-size:12px;text-decoration:none}
+.lk-site:hover{text-decoration:underline}
+.lk-loading{font-size:12px;color:var(--faint);padding:0 18px 12px}
+.lk-loading::after{content:"";display:inline-block;width:10px;height:10px;margin-left:6px;border:1.5px solid var(--faint);border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-1px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lk-new{padding:14px}
+.lk-input,.cm-reply input{width:100%;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 10px;outline:none;background:var(--field);transition:border-color .15s}
+.lk-input:focus,.cm-reply input:focus{border-color:var(--ink)}
+.embed{background:#000;overflow:hidden}
+.embed iframe{display:block;width:100%;height:100%;border:0;pointer-events:none}
+.card.selected .embed iframe,.viewonly .embed iframe{pointer-events:auto}
+/* a drag or resize in progress: frames must not swallow the button release */
+.tracking iframe{pointer-events:none!important}
+.embed-hint{font-size:11px;color:var(--faint);padding:6px 14px 8px}
+.card.selected .embed-hint{display:none}
+/* image */
+.t-image{background:var(--chip)}
+.t-image .im img{display:block;width:100%;height:auto;min-height:40px;pointer-events:none;opacity:0;transition:opacity .25s}
+.t-image .im img.loaded,.t-image .im img[src^="data:"]{opacity:1}
+.t-image .cap{padding:10px 14px;font-size:13px;background:var(--card-bg,var(--card))}
+.t-image .cap:empty:not([contenteditable=true]){display:none}
+/* file + media */
+.fl{display:flex;align-items:center;gap:12px;padding:14px}
+.fl-ic{width:40px;height:48px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:700;display:grid;place-items:center;text-transform:uppercase;flex:none}
+.fl-meta{flex:1;min-width:0}
+.fl-name{font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl-size{color:var(--muted);font-size:12px}
+.fl-dl{border:0;background:var(--hover);border-radius:7px;width:32px;height:32px;display:grid;place-items:center;flex:none;transition:background .12s}
+.fl-dl:hover{background:var(--press)}
+.t-file video{display:block;width:100%;max-height:420px;background:#000}
+.t-file audio{display:block;width:calc(100% - 24px);margin:0 12px 12px;height:36px}
+/* board card, and shortcuts to a board (the same tile with an arrow badge and where the board lives) */
+.t-board,.t-shortcut{padding:4px 6px 6px;text-align:center;background:none!important;box-shadow:none!important}
+.bd-icon{position:relative;width:72px;height:72px;margin:0 auto 9px;border-radius:14px;background:var(--tile);color:var(--tile-ink,var(--ink));display:grid;place-items:center;cursor:pointer;box-shadow:0 1px 2px rgba(27,37,54,.12);transition:transform .18s var(--spring),box-shadow .18s}
+.t-board:hover .bd-icon,.t-shortcut:hover .bd-icon{transform:translateY(-2px);box-shadow:0 6px 14px rgba(27,37,54,.16)}
+.t-board.selected .bd-icon,.t-shortcut.selected .bd-icon{box-shadow:0 0 0 2px var(--canvas),0 0 0 4px var(--select)}
+.t-board.dragging .bd-icon,.t-shortcut.dragging .bd-icon{box-shadow:var(--shadow-lift)}
+/* a board you're dragging cards over opens up and wiggles, ready to swallow them */
+.t-board.drop-target .bd-icon,.t-shortcut.drop-target .bd-icon{box-shadow:0 0 0 3px var(--accent),0 12px 26px -6px color-mix(in srgb,var(--accent) 45%,transparent);animation:hungry .7s ease-in-out infinite}
+@keyframes hungry{0%,100%{scale:1.14;rotate:-5deg}50%{scale:1.2;rotate:5deg}}
+.bd-emoji{font-size:34px;line-height:1}
+.bd-title{font-weight:700;font-size:14px;line-height:1.3;outline:none;overflow-wrap:anywhere}
+.bd-title:empty::before{content:attr(data-ph);color:var(--faint)}
+.bd-meta{color:var(--muted);font-size:12px;margin-top:2px}
+.t-board [contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text;background:var(--card);box-shadow:0 0 0 1.5px var(--ink);border-radius:3px}
+.sc-badge{position:absolute;left:-6px;bottom:-6px;width:24px;height:24px;border-radius:50%;background:var(--tile-ink,var(--accent));color:#fff;display:grid;place-items:center;box-shadow:0 0 0 2.5px var(--canvas),0 1px 3px rgba(27,37,54,.2)}
+.sc-badge svg{stroke-width:2.4}
+.bd-noaccess .sc-badge{background:var(--muted)}
+.sc-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* column */
+.t-column{background:var(--card-bg,var(--card));padding:0 7px 1px}
+.col-head{position:relative;display:flex;flex-direction:column;align-items:center;padding:16px 26px 14px}
+.col-tg{position:absolute;right:0;top:6px;border:0;background:none;width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--faint);padding:0;opacity:0;transition:opacity .15s,background .12s}
+.t-column:hover .col-tg,.t-column.collapsed .col-tg{opacity:1}
+.col-tg:hover{background:var(--chip);color:var(--ink)}
+.col-title{font:700 17px/1.3 var(--serif);text-align:center;outline:none;overflow-wrap:anywhere;min-width:40px}
+.col-title:empty::before{content:attr(data-ph);color:var(--faint)}
+.col-count{font-size:12px;color:var(--muted);margin-top:2px}
+.col-body{min-height:54px;padding-bottom:6px}
+.t-column.collapsed .col-body{display:none}
+/* a column pulled taller: the drop area takes the extra room (a folded column stays folded) */
+.t-column:not(.in-col){display:flex;flex-direction:column}
+.t-column:not(.in-col)>.col-body{flex:1}
+.t-column.collapsed{min-height:0!important}
+.col-empty{border:1.5px dashed var(--line);border-radius:3px;color:var(--faint);font-size:13px;text-align:center;padding:16px 8px;margin-bottom:7px}
+.col-body.has-ph .col-empty{display:none}
+.col-ph{border-radius:3px;margin-bottom:7px;background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 55%,transparent);animation:phGlow 1.2s ease-in-out infinite}
+@keyframes phGlow{50%{background:color-mix(in srgb,var(--accent) 7%,transparent)}}
+.t-column [contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text}
+/* comment */
+.t-comment{padding:14px 16px;border-top:3px solid #f2b136}
+.cm-row{position:relative;display:flex;gap:9px;margin-bottom:10px;animation:fadeIn .2s}
+.av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#ffb547,#f4511c);color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center;flex:none}
+.cm-main{min-width:0;flex:1}
+.cm-meta{font-size:12px;color:var(--muted)}
+.cm-meta b{color:var(--ink);font-weight:600}
+.cm-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.cm-reply input{height:32px;font-size:13px}
+/* sketch */
+.t-sketch canvas{display:block;width:100%;height:100%}
+.t-sketch.editing canvas{cursor:crosshair}
+.sk-tools{position:absolute;left:8px;bottom:8px;display:none;gap:4px;align-items:center;background:var(--menu);border-radius:8px;padding:4px;box-shadow:var(--shadow-pop)}
+.t-sketch.editing .sk-tools{display:flex}
+.sk-tools button{border:0;background:none;border-radius:6px;height:26px;min-width:26px;padding:0 6px;font-size:12px;display:grid;place-items:center}
+.sk-tools button:hover{background:var(--hover)}
+.sk-tools button[data-c]{width:26px;padding:0}
+.sk-tools button[data-c]::after{content:"";width:14px;height:14px;border-radius:50%;background:var(--c)}
+.sk-tools button.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.sk-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--faint);pointer-events:none;font-size:13px}
+/* swatch */
+.sw{height:110px}
+.t-swatch:not(.in-col){display:flex;flex-direction:column}
+.t-swatch:not(.in-col)>.sw{flex:1 0 auto}
+.sw-hex{padding:9px 12px;font-weight:600;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.03em;text-transform:uppercase}
+.t-swatch input[type=color]{position:absolute;left:10px;bottom:6px;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none}
+/* table */
+.t-table{padding:10px}
+.tb-wrap{overflow:hidden}
+.tb{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
+.tb td{border:1px solid var(--line);padding:6px 8px;vertical-align:top;overflow-wrap:anywhere;outline:none;min-width:40px;height:31px}
+.tb.hdr tr:first-child td{font-weight:650;background:var(--hover)}
+.tb td.fx{font-variant-numeric:tabular-nums;text-align:right}
+.tb td[contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text;text-align:left}
+.tb td[contenteditable=true]:focus{box-shadow:inset 0 0 0 2px var(--ink)}
+.tb-letters{display:none}
+.t-table.editing .tb-letters{display:table-row}
+.tb-letters th{font-size:10px;font-weight:600;color:var(--faint);padding:0 0 3px}
+.tb-tools{display:none;gap:4px;padding-top:8px;flex-wrap:wrap}
+.t-table.editing .tb-tools{display:flex}
+.tb-tools button{border:0;background:var(--hover);border-radius:6px;font-size:12px;padding:4px 8px;font-weight:500}
+.tb-tools button:hover{background:var(--press)}
+/* document */
+.t-doc{display:flex;gap:14px;padding:16px 18px}
+.dc-ic{width:40px;height:50px;border-radius:3px;background:var(--hover);color:var(--ink-2);display:grid;place-items:center;flex:none;box-shadow:inset 0 0 0 1px var(--line)}
+.dc-main{min-width:0;flex:1}
+.dc-title{font:700 15px/1.35 var(--serif);overflow-wrap:anywhere}
+.dc-snip{color:var(--muted);font-size:12.5px;margin:3px 0 8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.dc-open{border:0;background:var(--hover);border-radius:6px;font-size:12px;font-weight:600;padding:4px 10px}
+.dc-open:hover{background:var(--press)}
+/* drawing */
+.t-drawing{background:none!important;box-shadow:none!important;pointer-events:none}
+.t-drawing svg{overflow:visible}
+.t-drawing svg path{pointer-events:none}
+.t-drawing .dhit{stroke:transparent;fill:none;pointer-events:stroke;cursor:grab}
+.t-drawing.locked .dhit{cursor:default}
+.t-drawing.selected{outline:1.5px dashed var(--select);outline-offset:4px}
+.t-drawing>.conn,.t-drawing>.lock-badge{pointer-events:auto}
+/* text alignment (cards/align.js): only the card's own text, never cards inside a column */
+.t-note[data-align]>.note-body,.t-todo[data-align]>:is(.todo-title,ul),.t-comment[data-align] .cm-text,.t-image[data-align]>.cap,
+.t-table[data-align] .tb td,.t-doc[data-align] .dc-main,.doc-page[data-align] :is(.doc-title,.doc-body){text-align:var(--ta)}
+.t-column[data-align]>.col-head{align-items:stretch;text-align:var(--ta)}
+.t-column[data-align]>.col-head>.col-title{text-align:inherit}

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kolam</title>
+<meta name="description" content="Kolam — a visual workspace for notes, ideas, images and plans.">
+<meta name="theme-color" content="#ebedee">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles/app.css">
+</head>
+<body>
+<header id="topbar">
+  <a class="brand" href="#/b/home" title="Home" aria-label="Home">
+    <svg viewBox="12.5 12.5 231 231" width="22" height="22" aria-hidden="true"><path d="M128 128V78A50 50 0 1 0 78 128H178A50 50 0 0 0 228 78V28H178A50 50 0 0 0 128 78V178A50 50 0 0 0 178 228H228V178A50 50 0 0 0 178 128H78A50 50 0 1 0 128 178Z" fill="none" stroke="currentColor" stroke-width="31"/></svg>
+  </a>
+  <button id="spaceBtn" title="Switch between your boards, workspaces and boards shared with you" aria-label="Spaces"></button>
+  <nav id="crumbs" aria-label="Breadcrumbs"></nav>
+  <div class="top-right">
+    <button class="icon-btn" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo"></button>
+    <button class="icon-btn" id="redoBtn" title="Redo (⇧⌘Z)" aria-label="Redo"></button>
+    <span class="tb-div"></span>
+    <div class="search" id="searchWrap">
+      <button class="icon-btn" id="searchBtn" title="Search (⌘F)" aria-label="Search"></button>
+      <input id="search" type="search" placeholder="Search boards and cards" autocomplete="off" aria-label="Search">
+      <div id="searchResults" hidden></div>
+    </div>
+    <button class="icon-btn" id="bellBtn" title="Notifications" aria-label="Notifications" data-menu-btn></button>
+    <button class="icon-btn" id="helpBtn" title="Keyboard shortcuts (?)" aria-label="Help"></button>
+    <button class="icon-btn" id="menuBtn" title="More" aria-label="More"></button>
+    <button id="avatarBtn" title="Account" aria-label="Account"></button>
+  </div>
+</header>
+
+<div id="boardbar">
+  <div class="bb-left"><span id="saveState" data-state="saved">Saved</span><span id="viewPill" hidden>View only</span><button id="reportLink" class="report-link" hidden>Report</button></div>
+  <h1 id="boardTitle" title="Double-click to rename"></h1>
+  <div class="bb-right">
+    <div id="presence" hidden aria-label="People here"></div>
+    <button class="bb-btn" id="historyBtn" title="Activity and version history" aria-label="Activity"></button>
+    <button class="bb-btn" id="commentsBtn" title="Comments on this board"></button>
+    <button class="bb-btn" id="shareBtn" title="Share this board with people"></button>
+    <button class="bb-btn" id="exportBtn">Export<span class="chev"></span></button>
+    <button class="bb-btn" id="viewBtn">View<span class="chev"></span></button>
+    <button class="bb-btn" id="aiBtn" title="Use Kolam from Claude Code or Codex on your own computer"></button>
+  </div>
+</div>
+
+<aside id="toolbar" aria-label="Tools">
+  <div id="tools"></div>
+  <div id="ctxtools" hidden></div>
+</aside>
+
+<main id="canvas" tabindex="-1">
+  <div id="world">
+    <svg id="lines" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="items"></div>
+    <div id="guides"></div>
+    <svg id="handles" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div id="marquee" hidden></div>
+  <div id="emptyHint" hidden></div>
+  <button id="unsortedPill" title="Unsorted notes"><b id="unsortedBadge">0</b> Unsorted</button>
+</main>
+
+<div id="zoomCtl">
+  <button data-z="out" title="Zoom out (⌘−)" aria-label="Zoom out">−</button>
+  <button id="zoomPct" title="Reset to 100%">100%</button>
+  <button data-z="in" title="Zoom in (⌘+)" aria-label="Zoom in">+</button>
+  <button data-z="fit" title="Fit to screen" aria-label="Fit to screen">⤢</button>
+</div>
+
+<div id="fmtbar" class="floatbar" hidden></div>
+<div id="ctxmenu" hidden></div>
+<div id="toast" hidden></div>
+<div id="drawbar" class="floatbar" hidden></div>
+<aside id="drawer" hidden></aside>
+<aside id="aiPanel" hidden aria-label="Connect your AI"></aside>
+<aside id="commentsPanel" hidden aria-label="Comments"></aside>
+<aside id="historyPanel" hidden aria-label="Activity"></aside>
+<div id="notifPanel" hidden aria-label="Notifications"></div>
+<div id="modal" hidden></div>
+
+<input type="file" id="imgPick" accept="image/*" multiple hidden>
+<input type="file" id="filePick" multiple hidden>
+<input type="file" id="importPick" accept="application/json,.json" hidden>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

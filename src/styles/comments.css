@@ -1,0 +1,91 @@
+/* ---------- comments: badges on cards, comment cards, the Comments panel ---------- */
+.av[style*="--h"]{background:hsl(var(--h) 62% 52%)}
+.cm-badge,.cm-add{position:absolute;top:-10px;right:-10px;z-index:3;height:22px;min-width:22px;padding:0 6px;border:0;border-radius:11px;
+  display:inline-flex;align-items:center;justify-content:center;gap:3px;font:600 11px var(--font);cursor:pointer;box-shadow:var(--shadow-card);transition:opacity .15s,transform .12s var(--ease)}
+.cm-badge{background:var(--blue);color:#fff}
+.cm-add{background:var(--panel);color:var(--ink-2);opacity:0;padding:0}
+.card:hover>.cm-add,.card.selected>.cm-add{opacity:1}
+.cm-badge:hover,.cm-add:hover{transform:scale(1.08)}
+.card.editing>.cm-add{display:none}
+@media print{.cm-badge,.cm-add{display:none!important}}
+.cm-row{cursor:pointer}
+.cm-resolved{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--ok);margin-bottom:8px;cursor:pointer}
+.cm-reply{position:relative}
+.mention{color:var(--blue);font-weight:600}
+.mention.me{background:color-mix(in srgb,var(--blue) 14%,transparent);border-radius:4px;padding:0 2px}
+.mention-list{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:20;background:var(--panel);border-radius:10px;box-shadow:var(--shadow-pop);padding:4px;max-height:240px;overflow:auto}
+.mention-list[hidden]{display:none}
+.mention-list button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;border-radius:7px;padding:6px 8px;text-align:left;font-size:13px;color:var(--ink)}
+.mention-list button.on,.mention-list button:hover{background:var(--hover)}
+.mention-list .av{width:22px;height:22px;font-size:11px}
+.mention-list small{color:var(--muted);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50%}
+
+#commentsBtn{position:relative}
+#commentsBtn.open{background:var(--hover)}
+.cm-count{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--blue);color:#fff;font:700 11px/18px var(--font);text-align:center}
+#commentsPanel{position:fixed;top:calc(var(--head) + 10px);right:10px;bottom:10px;width:360px;z-index:46;background:var(--panel);border-radius:12px;box-shadow:var(--shadow-pop);display:flex;flex-direction:column;overflow:hidden;animation:drawerIn .22s var(--ease)}
+#commentsPanel[hidden]{display:none}
+.cmt-tabs{display:flex;gap:4px;padding:10px 14px 0}
+.cmt-tabs button{border:0;background:none;border-radius:7px;padding:6px 10px;font-size:13px;color:var(--ink-2)}
+.cmt-tabs button.on{background:var(--hover);color:var(--ink);font-weight:600}
+.cmt-list{flex:1;overflow:auto;padding:12px 14px}
+.cmt-thread{display:block;width:100%;text-align:left;border:0;background:var(--card);border-radius:9px;padding:10px 12px;margin-bottom:8px;box-shadow:var(--shadow-card);color:var(--ink)}
+.cmt-thread:hover{box-shadow:var(--shadow-hover)}
+.cmt-card{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);min-width:0}
+.cmt-card span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmt-card svg{flex:none}
+.cmt-last{display:block;margin:5px 0 3px;font-size:13px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cmt-thread small{color:var(--muted);font-size:11.5px}
+.cmt-top{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.cmt-top .cmt-card{flex:1}
+.cmt-top .btn{display:inline-flex;align-items:center;gap:4px}
+.cmt-done{display:flex;align-items:center;gap:5px;padding:7px 14px;font-size:12px;color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.cmt{display:flex;gap:9px;margin-bottom:14px}
+.cmt-main{flex:1;min-width:0}
+.cmt-meta{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);min-height:22px}
+.cmt-meta b{color:var(--ink);font-weight:600;font-size:13px}
+.cmt-meta i{font-style:normal}
+.cmt-acts{margin-left:auto;display:flex;gap:1px;opacity:0;transition:opacity .12s}
+.cmt:hover .cmt-acts,.cmt:focus-within .cmt-acts{opacity:1}
+.cmt-acts button{border:0;background:none;color:var(--muted);width:24px;height:24px;border-radius:6px;display:grid;place-items:center;padding:0}
+.cmt-acts button:hover{background:var(--hover);color:var(--ink)}
+.cmt-acts [data-del]:hover{color:var(--danger)}
+.cmt-body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px;line-height:1.45}
+.cmt-pick{display:inline-flex;gap:2px;margin-top:6px;background:var(--panel);border-radius:9px;box-shadow:var(--shadow-pop);padding:3px}
+.cmt-pick button{border:0;background:none;font-size:17px;width:32px;height:30px;border-radius:7px}
+.cmt-pick button:hover{background:var(--hover)}
+.cmt-reacts{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.cmt-react{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 7px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:13px;color:var(--ink)}
+.cmt-react b{font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.cmt-react.mine{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 10%,transparent)}
+button.cmt-react[data-react]:hover{border-color:var(--ink-2)}
+.cm-row .cmt-reacts{margin-top:4px}
+.cm-row .cmt-react{height:20px;font-size:11.5px;pointer-events:none}
+.cmt-editbox textarea,.cmt-compose textarea{width:100%;resize:none;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:8px 10px;outline:none;font:inherit;font-size:13.5px;color:var(--ink)}
+.cmt-editbox textarea:focus,.cmt-compose textarea:focus{border-color:var(--ink)}
+.cmt-editbox div{display:flex;gap:6px;margin-top:6px}
+.cmt-compose{position:relative;display:flex;align-items:flex-end;gap:6px;padding:10px 12px 12px;border-top:1px solid var(--line)}
+.cmt-compose .mention-list{left:12px;right:12px}
+
+/* ---------- notifications ---------- */
+#bellBtn{position:relative}
+.nt-dot{position:absolute;top:3px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--accent);color:#fff;font:700 10px/16px var(--font);font-style:normal;box-shadow:0 0 0 2px var(--panel)}
+#notifPanel{position:fixed;top:calc(var(--head) - 4px);right:60px;width:360px;max-height:min(560px,calc(100vh - var(--head) - 20px));z-index:60;background:var(--panel);border-radius:12px;box-shadow:var(--shadow-pop);display:flex;flex-direction:column;overflow:hidden;animation:fadeIn .15s}
+#notifPanel[hidden]{display:none}
+.nt-head{display:flex;align-items:center;gap:6px;padding:12px 8px 10px 16px;border-bottom:1px solid var(--line)}
+.nt-head b{font:700 16px var(--serif);margin-right:auto}
+.nt-link{border:0;background:none;color:var(--blue);font-size:12.5px;font-weight:600;padding:4px 6px;border-radius:6px}
+.nt-link:hover{background:var(--hover)}
+.nt-settings{padding:10px 16px;border-bottom:1px solid var(--line);font-size:13px;display:grid;gap:6px}
+.nt-settings p{margin:0;color:var(--muted);font-size:12px}
+.nt-settings label{display:flex;align-items:center;gap:8px}
+.nt-list{overflow:auto;padding:6px}
+.nt-row{display:flex;gap:10px;width:100%;border:0;background:none;text-align:left;border-radius:9px;padding:9px 10px;color:var(--ink);font-size:13px;position:relative}
+.nt-row:hover{background:var(--hover)}
+.nt-row.unread::after{content:'';position:absolute;right:10px;top:15px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.nt-row.unread{padding-right:26px}
+.nt-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nt-q{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.nt-main small{color:var(--muted);font-size:11.5px}
+@media (max-width:640px){#commentsPanel{width:auto;left:10px}#notifPanel{left:10px;right:10px;width:auto}#commentsBtn span{display:none}}
+@media print{#commentsPanel,#notifPanel{display:none!important}}

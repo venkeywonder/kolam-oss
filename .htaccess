@@ -1,0 +1,23 @@
+# Apache safety net: never serve dotfiles, server code, stored data or deploy files
+<FilesMatch "^\.(?!well-known$)">
+  Require all denied
+</FilesMatch>
+RedirectMatch 404 ^.*/(server|storage|data|deploy|site-src)(/.*)?$
+# the marketing site lives on its own domain; only localhost may preview it at /site/
+<If "! %{HTTP_HOST} =~ /^(localhost|127\.0\.0\.1)(:[0-9]+)?$/">
+  RedirectMatch 404 ^.*/site(/.*)?$
+</If>
+# ...except /api/.well-known/, where MCP clients find the sign-in (OAuth) metadata
+RedirectMatch 404 ^(?!.*/api/\.well-known/).*/\.
+RedirectMatch 404 ^.*/README\.md$
+# source files are served unbundled under fixed names: make browsers revalidate so updates show up on reload
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|html)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+# the website's "Start free" and "Sign in" buttons link to /signup and /login: both are the app itself
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(signup|login)$ index.html [L]
+</IfModule>

@@ -1,0 +1,24 @@
+/* Small illustrated tiles for the left toolbar (36×36). Original artwork for Kolam. */
+const card = (inner, h = 26, y = 5) => `<rect x="3" y="${y}" width="30" height="${h}" rx="2" fill="var(--tile-card)" stroke="var(--tile-edge)"/>${inner}`;
+const bar = (x, y, w, c = 'var(--tile-line)') => `<rect x="${x}" y="${y}" width="${w}" height="2" rx="1" fill="${c}"/>`;
+
+export const TILE = {
+  note: card(bar(8, 11, 20) + bar(8, 16, 20) + bar(8, 21, 13)),
+  link: card(`<path d="M15.5 20.5l-1.6 1.6a3.2 3.2 0 01-4.5-4.5l2.6-2.6a3.2 3.2 0 014.5 0M20.5 15.5l1.6-1.6a3.2 3.2 0 00-4.5-4.5l-2.6 2.6a3.2 3.2 0 000 4.5" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linecap="round"/>`),
+  todo: card(`<path d="M8 12.5l1.6 1.6L12.6 11M8 20l1.6 1.6 3-3.1" fill="none" stroke="var(--tile-ink)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>` + bar(16, 12, 12, 'var(--tile-ink)') + bar(16, 19.5, 12, 'var(--tile-ink)')),
+  line: `<path d="M7 29L28 8" stroke="var(--tile-ink)" stroke-width="2.2" stroke-linecap="round"/><path d="M19.5 7.5H28.5V16.5" fill="none" stroke="var(--tile-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`,
+  board: `<rect x="3" y="3" width="30" height="30" rx="8" fill="#5f79f5"/><rect x="10" y="10" width="7" height="7" rx="1.6" fill="#fff"/><rect x="19" y="10" width="7" height="7" rx="1.6" fill="#fff" opacity=".6"/><rect x="10" y="19" width="7" height="7" rx="1.6" fill="#fff" opacity=".6"/><rect x="19" y="19" width="7" height="7" rx="1.6" fill="#fff" opacity=".6"/>`,
+  shortcut: `<rect x="3" y="3" width="30" height="30" rx="8" fill="#5f79f5" opacity=".22"/><rect x="3.75" y="3.75" width="28.5" height="28.5" rx="7.25" fill="none" stroke="#5f79f5" stroke-width="1.5" stroke-dasharray="3 2.4"/><path d="M12 25v-4.5a5.5 5.5 0 015.5-5.5H25" fill="none" stroke="#3f57d6" stroke-width="2.4" stroke-linecap="round"/><path d="M21 10.5l4.5 4.5-4.5 4.5" fill="none" stroke="#3f57d6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`,
+  column: `<rect x="6" y="2" width="24" height="32" rx="2" fill="var(--tile-card)" stroke="var(--tile-edge)"/>${bar(11, 7, 14, 'var(--tile-ink)')}<rect x="9" y="12" width="18" height="8" fill="var(--tile-line)"/><rect x="9" y="22" width="18" height="8" fill="var(--tile-line)"/>`,
+  comment: `<path d="M4 6.5A1.5 1.5 0 015.5 5h25A1.5 1.5 0 0132 6.5v17a1.5 1.5 0 01-1.5 1.5H22l-4 4-4-4H5.5A1.5 1.5 0 014 23.5z" fill="var(--tile-card)" stroke="var(--tile-edge)"/>${bar(9, 11, 18, '#5f79f5')}${bar(9, 16, 18, '#5f79f5')}`,
+  table: `<rect x="3" y="6" width="30" height="24" rx="2" fill="var(--tile-card)" stroke="var(--tile-edge)"/><path d="M3 12h30M3 18h30M3 24h30M13 6v24M23 6v24" stroke="var(--tile-edge)"/><rect x="3.5" y="6.5" width="29" height="5.5" fill="var(--tile-line)"/>`,
+  doc: `<path d="M8 3h14l7 7v22a1 1 0 01-1 1H8a1 1 0 01-1-1V4a1 1 0 011-1z" fill="var(--tile-card)" stroke="var(--tile-edge)"/><path d="M22 3v7h7" fill="none" stroke="var(--tile-edge)"/>${bar(11, 15, 14, 'var(--tile-ink)')}${bar(11, 20, 14)}${bar(11, 25, 10)}`,
+  sketch: card(`<path d="M8 22c3-6 5-9 7-7s-2 7 1 7 4-9 7-9 1 6 4 6" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`),
+  swatch: `<rect x="4" y="4" width="18" height="18" rx="2" fill="#2f7d84"/><rect x="14" y="14" width="18" height="18" rx="2" fill="#e05a78" stroke="var(--tile-card)" stroke-width="1.5"/>`,
+  image: `<rect x="5" y="5" width="26" height="26" rx="3" fill="none" stroke="var(--tile-ink)" stroke-width="1.8"/><circle cx="13" cy="13" r="2.5" fill="var(--tile-ink)"/><path d="M6 27l8-8 5 5 4-4 7 7" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linejoin="round"/>`,
+  upload: `<path d="M10 4h11l7 7v20a1 1 0 01-1 1H10a1 1 0 01-1-1V5a1 1 0 011-1z" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linejoin="round"/><path d="M21 4v7h7" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linejoin="round"/>`,
+  draw: `<path d="M24.5 6.5l5 5L13 28H8v-5z" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linejoin="round"/><path d="M21 10l5 5" stroke="var(--tile-ink)" stroke-width="1.8"/>`,
+  trash: `<path d="M9 11h18l-1.6 20a1.5 1.5 0 01-1.5 1.4H12.1a1.5 1.5 0 01-1.5-1.4z" fill="var(--tile-bin)"/><rect x="7" y="7" width="22" height="3.5" rx="1" fill="var(--tile-bin-lid)"/><rect x="14" y="4.5" width="8" height="3" rx="1" fill="var(--tile-bin-lid)"/>`,
+};
+
+export const tile = name => `<svg class="tile" viewBox="0 0 36 36" width="34" height="34" aria-hidden="true">${TILE[name] || ''}</svg>`;

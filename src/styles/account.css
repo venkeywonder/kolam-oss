@@ -1,0 +1,68 @@
+/* Account settings page (src/ui/account.js): covers the app at #/account/<section>. */
+body.account-open>*:not(#account):not(#modal):not(#toast):not(.confirm-back):not(#consentBanner){visibility:hidden}
+#account{position:fixed;inset:0;z-index:80;overflow-y:auto;background:var(--canvas);animation:fadeIn .18s}
+#account[hidden]{display:none}
+.ac-top{position:sticky;top:0;z-index:1;height:var(--top);display:flex;align-items:center;padding:0 10px;background:var(--panel);box-shadow:0 1px 0 var(--line-2)}
+.ac-back{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:0;border-radius:7px;background:none;color:var(--ink);font:600 13px var(--font);cursor:pointer}
+.ac-back:hover{background:var(--hover)}
+.ac-back:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.ac-wrap{max-width:980px;margin:0 auto;padding:32px 24px 80px}
+.ac-h1{font:700 30px/1.2 var(--serif);margin:0 0 24px}
+.ac-grid{display:grid;grid-template-columns:230px minmax(0,1fr);gap:36px;align-items:start}
+
+/* ---------- side navigation ---------- */
+.ac-nav{position:sticky;top:calc(var(--top) + 24px);display:flex;flex-direction:column;gap:2px}
+.ac-me{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px 10px;padding:0 10px 16px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.ac-me b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ac-me small{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ac-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--panel);font-weight:700;font-size:15px}
+.ac-nav a{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:8px;color:var(--ink-2);font-size:13.5px;font-weight:500;text-decoration:none}
+.ac-nav a svg{flex:none;color:var(--muted)}
+.ac-nav a:hover{background:var(--chip);color:var(--ink)}
+.ac-nav a.on,.ac-nav a.on:hover{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}
+.ac-nav a.on svg{color:var(--accent)}
+.ac-nav a:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+
+/* ---------- sections ---------- */
+.ac-main{outline:none;min-width:0}
+.ac-head{margin:0 0 18px}
+.ac-head h2{font:700 21px/1.3 var(--serif);margin:0 0 4px}
+.ac-head p{color:var(--ink-2);margin:0}
+.ac-card{background:var(--panel);border-radius:12px;box-shadow:var(--shadow-card);padding:20px 22px;margin-bottom:16px}
+.ac-card h3{font-size:15px;font-weight:600;margin:0 0 4px}
+.ac-sub{color:var(--ink-2);font-size:13px;margin:0 0 14px}
+.ac-sub a{color:var(--accent)}
+.ac-tail{margin:14px 0 0}
+.ac-form{display:flex;flex-direction:column;gap:16px;max-width:420px}
+.ac-field{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.ac-field small{font-weight:400;color:var(--muted);font-size:12px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.ac-field .field:disabled{color:var(--ink-2);cursor:default}
+.ac-inline{flex-direction:row;align-items:center;gap:12px}
+.ac-inline select{width:auto}
+.ac-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.ac-actions .btn{display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+#account .btn.accent{background:var(--accent);color:#fff}
+.ac-link{border:0;background:none;padding:0;color:var(--accent);font:600 12px var(--font);cursor:pointer}
+#account .btn:disabled{opacity:.45;cursor:default;filter:none;transform:none}
+.ac-link:hover{text-decoration:underline}
+.ac-link:disabled{opacity:.5;cursor:default}
+.ac-tag{display:inline-block;font-size:11px;font-weight:600;border-radius:5px;padding:1px 6px;color:var(--ink-2);background:var(--chip);vertical-align:1px;letter-spacing:0;text-transform:none}
+.ac-tag.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.ac-tag.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+
+/* ---------- devices, danger ---------- */
+.ac-devices{list-style:none;margin:6px 0 12px;padding:0}
+.ac-devices li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.ac-devices li:last-child{border-bottom:0}
+.ac-devices small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.ac-danger h3{color:var(--danger)}
+
+@media (max-width:760px){
+  .ac-wrap{padding:20px 14px 60px}
+  .ac-h1{font-size:24px;margin-bottom:14px}
+  .ac-grid{grid-template-columns:1fr;gap:18px}
+  .ac-nav{position:static;flex-direction:row;overflow-x:auto;gap:4px;padding:2px;margin:-2px;scrollbar-width:none}
+  .ac-me{display:none}
+  .ac-nav a{flex:none;white-space:nowrap}
+  .ac-card{padding:16px}
+}

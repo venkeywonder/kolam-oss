@@ -1,0 +1,30 @@
+/* Design tokens. Light theme is the default; dark theme overrides below. */
+:root,:root[data-theme=light]{
+  --ink:#323b4a; --ink-2:#5f6672; --muted:#8d929a; --faint:#b4b8be; --line:#e3e5e8; --line-2:rgba(27,37,54,.1);
+  --canvas:#ebedee; --dot:#c6cace; --panel:#ffffff; --card:#ffffff; --hover:#f3f4f5; --press:#e9ebed; --field:#f6f7f8;
+  --menu:#ffffff; --chip:rgba(27,37,54,.06); --float:#252c38;
+  --accent:#f4511c; --accent-soft:rgba(244,81,28,.12); --focus:#323b4a; --select:#323b4a; --select-soft:rgba(50,59,74,.08);
+  --blue:#5f79f5; --danger:#e0453a; --ok:#2fa36b; --warn:#e8901f;
+  --tile-card:#ffffff; --tile-edge:#c5c9cf; --tile-line:#dfe2e6; --tile-ink:#323b4a; --tile-bin:#b9bdc3; --tile-bin-lid:#9da2a9;
+  --shadow-card:0 1px 2px rgba(27,37,54,.1),0 0 0 1px rgba(27,37,54,.06);
+  --shadow-hover:0 3px 10px rgba(27,37,54,.1),0 0 0 1px rgba(27,37,54,.07);
+  --shadow-lift:0 18px 40px -8px rgba(27,37,54,.28),0 4px 12px rgba(27,37,54,.12),0 0 0 1px rgba(27,37,54,.06);
+  --shadow-pop:0 8px 22px -6px rgba(27,37,54,.12),0 14px 32px -4px rgba(27,37,54,.14),0 2px 20px 4px rgba(27,37,54,.06);
+  --font:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --serif:'Source Serif 4','Tiempos Text',Georgia,'Times New Roman',serif;
+  --top:44px; --bar:46px; --head:calc(var(--top) + var(--bar)); --side:64px;
+  --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.56,.64,1);
+  color-scheme:light;
+}
+:root[data-theme=dark]{
+  --ink:#e6e8ec; --ink-2:#b9bec7; --muted:#8e949e; --faint:#5f6570; --line:#323843; --line-2:rgba(255,255,255,.08);
+  --canvas:#1b1f26; --dot:#363c47; --panel:#232830; --card:#2a3039; --hover:#313741; --press:#3a414c; --field:#262b33;
+  --menu:#2a3039; --chip:rgba(255,255,255,.08); --float:#3a414d;
+  --accent:#ff7a4d; --accent-soft:rgba(255,122,77,.16); --focus:#e6e8ec; --select:#e6e8ec; --select-soft:rgba(230,232,236,.08);
+  --tile-card:#3a414c; --tile-edge:#59616d; --tile-line:#4a515c; --tile-ink:#e6e8ec; --tile-bin:#6b727d; --tile-bin-lid:#878e99;
+  --shadow-card:0 1px 2px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.05);
+  --shadow-hover:0 4px 12px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.07);
+  --shadow-lift:0 18px 40px -6px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08);
+  --shadow-pop:0 14px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07);
+  color-scheme:dark;
+}

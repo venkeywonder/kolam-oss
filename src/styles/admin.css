@@ -1,0 +1,36 @@
+/* Operator admin page (src/ui/admin.js). */
+.admin-modal{width:min(1080px,100%);min-height:min(640px,calc(100vh - 40px))}
+.adm-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.adm-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:10px 0 18px}
+.adm-tabs button{background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:8px 12px;font:600 13px var(--font);color:var(--ink-2);cursor:pointer}
+.adm-tabs button:hover{color:var(--ink)}
+.adm-tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.adm-body h3{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:18px 0 10px}
+.adm-body h3:first-child{margin-top:0}
+.adm-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.adm-tile{background:var(--field);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.adm-tile b{font:700 24px/1.2 var(--font);color:var(--ink)}
+.adm-tile span{font-size:13px;color:var(--ink-2)}
+.adm-tile small{font-size:12px;color:var(--muted)}
+.adm-muted{color:var(--muted);font-size:12.5px}
+.modal-card p.adm-muted{color:var(--muted)}
+.adm-bar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.adm-search{flex:0 1 320px}
+.adm-status{width:auto;flex:none}
+.adm-scroll{overflow-x:auto}
+.adm-table{width:100%;border-collapse:collapse;font-size:13px}
+.adm-table th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.adm-table td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+.adm-table td:first-child{white-space:normal;min-width:220px}
+.adm-table small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.adm-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.adm-tag{display:inline-block;font-size:11px;font-weight:600;border-radius:5px;padding:1px 6px;margin-left:4px;color:var(--ink-2);background:var(--chip);vertical-align:1px}
+.adm-tag.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.adm-tag.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.adm-tag.bad{color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent)}
+.adm-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.adm-item header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.adm-item header .adm-tag{margin-left:0}
+.modal-card .adm-item p{margin:0 0 8px;white-space:pre-wrap;color:var(--ink)}
+.modal-card .adm-item p.adm-muted{color:var(--muted);white-space:normal}
+.adm-item .adm-actions{justify-content:flex-start}

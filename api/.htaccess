@@ -1,0 +1,6 @@
+# Route every /api/* request to the front controller
+RewriteEngine On
+# pass "Authorization: Bearer …" through to PHP (MCP clients and the AI bridge use it)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]

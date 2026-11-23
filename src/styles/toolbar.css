@@ -1,0 +1,50 @@
+/* ---------- left toolbar ---------- */
+#toolbar{position:fixed;top:var(--head);left:0;bottom:0;width:var(--side);background:var(--canvas);box-shadow:1px 0 0 rgba(0,0,0,.08);z-index:40;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+#toolbar::-webkit-scrollbar{display:none}
+#tools,#ctxtools{display:flex;flex-direction:column;align-items:center;padding:10px 0 8px;min-height:100%;gap:2px}
+#ctxtools{animation:slideIn .2s var(--ease)}
+#tools:not([hidden]){animation:fadeIn .18s var(--ease)}
+@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}}
+@keyframes fadeIn{from{opacity:0}}
+.tool{position:relative;width:60px;padding:5px 0 4px;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(0,0,0,.6);user-select:none;touch-action:none;flex:none;border-radius:8px}
+:root[data-theme=dark] .tool{color:var(--muted)}
+.tile-wrap{display:grid;place-items:center;width:38px;height:38px;transition:transform .18s var(--spring)}
+.tile{display:block;filter:drop-shadow(0 1px 1px rgba(27,37,54,.12))}
+.tool:hover .tile-wrap{transform:translateY(-2px) scale(1.06)}
+.tool:active .tile-wrap,.tool.pressed .tile-wrap{transform:scale(.92)}
+.tool-name{font-size:10px;line-height:11px;letter-spacing:.01em;white-space:nowrap}
+.tool:hover .tool-name{color:var(--ink)}
+.tool.active .tile-wrap{background:var(--panel);border-radius:9px;box-shadow:var(--shadow-card)}
+.tool-sep{width:30px;height:1px;background:rgba(0,0,0,.1);margin:8px 0;flex:none}
+.tool-spacer{flex:1;min-height:10px}
+.glyph{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:var(--ink);background:var(--panel);box-shadow:var(--shadow-card);transition:background .12s}
+.glyph.plain{background:none;box-shadow:none;color:var(--ink-2)}
+.tool:hover .glyph.plain{background:var(--press)}
+.tool.on .glyph{background:var(--ink);color:var(--panel)}
+.swatch-glyph{background:var(--c);box-shadow:inset 0 0 0 1px rgba(27,37,54,.15),var(--shadow-card)}
+.swatch-glyph i{width:22px;height:2px;background:var(--danger);transform:rotate(-45deg);border-radius:2px}
+.sel-count{font-size:10px;color:var(--muted);margin-top:6px;text-align:center;min-height:12px}
+.trash-tool:hover .tile-wrap{transform:translateY(-2px) rotate(-6deg)}
+.palette-pop{position:fixed;z-index:75;display:grid;grid-template-columns:repeat(4,26px);gap:7px;padding:10px;background:var(--menu);border-radius:12px;box-shadow:var(--shadow-pop);animation:pop .16s var(--ease);transform-origin:left top}
+.palette-pop button{width:26px;height:26px;border-radius:50%;border:0;padding:0;background:var(--c);box-shadow:inset 0 0 0 1px rgba(27,37,54,.18);transition:transform .15s var(--spring)}
+.palette-pop button:hover{transform:scale(1.15)}
+.palette-pop button.on{box-shadow:inset 0 0 0 1px rgba(27,37,54,.18),0 0 0 2px var(--menu),0 0 0 4px var(--ink)}
+.tool:disabled{opacity:.4;cursor:default}
+.tool:disabled .tile-wrap{transform:none}
+.tool-pop{position:fixed;z-index:75;width:244px;padding:6px 8px 8px;background:var(--menu);border-radius:12px;box-shadow:var(--shadow-pop);animation:pop .16s var(--ease);transform-origin:left top}
+.tp-head{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:6px 2px 4px}
+.tp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.tp-row button{display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;padding:6px 0 4px;border-radius:8px;color:var(--ink-2);font-size:10px;line-height:11px;transition:background .1s}
+.tp-row button:hover{background:var(--hover);color:var(--ink)}
+.tp-row button.on{background:var(--ink);color:var(--panel)}
+.tool-ghost{position:fixed;left:0;top:0;z-index:200;pointer-events:none;background:var(--card);box-shadow:var(--shadow-lift);padding:10px 14px 10px 10px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;will-change:transform;animation:lift .15s var(--ease)}
+@keyframes lift{from{opacity:.4;scale:.9}}
+.tool[data-tool]:not([data-tool=draw]){cursor:grab}
+.tool[data-tool]:not([data-tool=draw]):active{cursor:grabbing}
+body.grabbing,body.grabbing *{cursor:grabbing!important}
+/* Unsorted pill */
+#unsortedPill{position:absolute;top:12px;right:16px;z-index:30;height:26px;border:1px solid rgba(27,37,54,.14);border-radius:5px;background:transparent;color:var(--muted);font-size:12px;padding:0 9px;display:flex;align-items:center;gap:4px;transition:background .15s,color .15s,border-color .15s}
+#unsortedPill b{font-weight:700}
+#unsortedPill:hover,#unsortedPill.active{background:var(--panel);color:var(--ink);border-color:transparent;box-shadow:var(--shadow-card)}
+#unsortedPill.has{color:var(--ink)}
+#unsortedPill.has b{color:var(--accent)}

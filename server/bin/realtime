@@ -1,0 +1,24 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+// Kolam's live-update server: tells open browsers the moment a board changes and who else is there.
+// Run it as a background service (bash server/bin/install-realtime.sh) behind your web server's WebSocket proxy, and set
+// REALTIME_URL in .env to the address browsers use (deploy/nginx.conf and deploy/apache.conf show the proxy).
+// Trying it out locally:  php server/bin/realtime        (listens on REALTIME_LISTEN, default 127.0.0.1:8090)
+
+use Kolam\{Config, Db, RealtimeServer};
+
+require dirname(__DIR__) . '/bootstrap.php';
+if (PHP_SAPI !== 'cli') exit(1);
+
+Db::pdo();
+// With SQLite the web server (another user) must still be able to write the -wal/-shm files this process creates
+if (Db::$driver === 'sqlite') umask(0);
+
+try {
+    exit((new RealtimeServer())->run((string) Config::get('realtime_listen')));
+} catch (\PDOException $e) {
+    // e.g. the database restarted: exit and let the service manager start a fresh server
+    fwrite(STDERR, '[' . date('Y-m-d H:i:s') . '] database error: ' . $e->getMessage() . "\n");
+    exit(1);
+}

@@ -1,0 +1,8 @@
+/* Public share link: the small "Report" link and its modal. */
+.report-link{font-size:12px;color:var(--muted);background:none;border:0;padding:3px 6px;cursor:pointer;border-radius:8px}
+.report-link:hover{color:var(--ink-2);background:var(--hover)}
+.report-reasons{display:grid;gap:6px;margin-bottom:14px}
+.report-reasons label{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink)}
+.report-details,.report-email{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:var(--field);
+  color:var(--ink);font:inherit;padding:9px 11px;margin-bottom:10px}
+.report-details{resize:vertical;min-height:72px}

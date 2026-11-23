@@ -1,0 +1,28 @@
+/* Help menu extras: What's new dialog and the Send feedback dialog. */
+#helpBtn{position:relative}
+#helpBtn.has-unread::after{content:'';position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 2px var(--panel)}
+
+.whatsnew-modal{max-width:460px}
+.whatsnew-list{max-height:min(60vh,480px);overflow:auto;margin:4px -4px 0;padding:0 4px}
+.whatsnew-entry{padding:12px 0;border-top:1px solid var(--line)}
+.whatsnew-entry:first-child{border-top:0;padding-top:0}
+.whatsnew-entry h3{margin:0 0 8px;font-size:13px;font-weight:600;color:var(--muted)}
+.whatsnew-entry ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px;color:var(--ink)}
+.whatsnew-entry code{background:var(--field);border-radius:4px;padding:1px 5px;font-size:12.5px}
+
+.feedback-modal{max-width:420px}
+.fb-kinds{display:flex;gap:6px;margin:4px 0 12px}
+.fb-kind{flex:1;text-align:center;border:1px solid var(--line);border-radius:9px;padding:8px 4px;font-size:13px;color:var(--muted);cursor:pointer;transition:background .12s,color .12s}
+.fb-kind input{position:absolute;opacity:0;pointer-events:none}
+.fb-kind:has(input:checked){background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.fb-body{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:var(--field);
+  color:var(--ink);font:inherit;padding:9px 11px;margin-bottom:10px;resize:vertical;min-height:110px}
+.fb-page{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);margin-bottom:4px}
+
+/* ---------- cookie banner (EU, EEA, UK and Switzerland); above the sign-in screen (#auth, 500) ---------- */
+#consentBanner{position:fixed;left:16px;bottom:16px;z-index:600;max-width:380px;background:var(--panel);color:var(--ink);border-radius:12px;box-shadow:var(--shadow-lift);padding:14px 16px;font-size:13px;line-height:1.45}
+#consentBanner p{margin:0 0 10px;color:var(--ink-2)}
+#consentBanner a{color:var(--ink);text-decoration:underline}
+#consentBanner .cb-actions{display:flex;gap:8px;justify-content:flex-end}
+#consentBanner .btn{height:32px;font-size:12.5px}
+@media (max-width:520px){#consentBanner{left:8px;right:8px;bottom:8px;max-width:none}}

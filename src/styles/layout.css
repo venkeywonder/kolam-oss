@@ -1,0 +1,26 @@
+/* ---------- read-only view, print, small screens ---------- */
+/* .viewonly: you can't edit the board on screen; .public-view: a read-only share link, no account */
+.viewonly #toolbar,.viewonly #undoBtn,.viewonly #redoBtn,.viewonly #unsortedPill,.viewonly .tb-div,.shared-space #unsortedPill{display:none}
+.public-view #menuBtn,.public-view #saveState,.public-view #shareBtn,.public-view #spaceBtn{display:none}
+.viewonly #canvas{left:0}
+.viewonly .card{cursor:grab}
+.viewonly .bd-icon,.viewonly a,.viewonly .dc-open{cursor:pointer}
+/* booting: show none of the app until we know whether you're signed in (.auth-mode) or your boards are loaded (.ready) */
+body:not(.ready):not(.auth-mode)>*:not(.err-page){visibility:hidden}
+body:not(.ready):not(.auth-mode)::after{content:"";position:fixed;left:50%;top:50%;width:22px;height:22px;margin:-11px;border:2px solid var(--line);border-top-color:var(--ink-2);border-radius:50%;opacity:0;animation:bootIn .2s .6s forwards,spin .8s linear infinite}
+@keyframes bootIn{to{opacity:1}}
+body.ready>#topbar,body.ready>#boardbar,body.ready>#toolbar,body.ready>#zoomCtl,body.ready #canvas{animation:fadeIn .25s}
+@media print{
+  #topbar,#boardbar,#toolbar,#zoomCtl,.floatbar,#drawer,#toast,#handles,#unsortedPill{display:none!important}
+  #canvas{left:0;top:0;background:none}
+}
+@media (max-width:760px){
+  :root{--side:56px;--bar:42px}
+  .tool{width:52px}
+  .tool-name{font-size:9px}
+  .search.open #search{width:140px}
+  .bb-btn{padding:0 7px}
+  #exportBtn,#viewBtn,#helpBtn,#crumbs .cur{display:none}
+  #boardTitle{font-size:17px;max-width:40vw}
+  #drawer{width:auto;left:10px}
+}

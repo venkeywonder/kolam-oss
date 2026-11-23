@@ -1,0 +1,37 @@
+# Checks every push to main and every pull request.
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP syntax
+        run: |
+          php -v | head -1
+          find api server -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+          for f in server/bin/kolam server/bin/realtime; do php -l "$f" > /dev/null; done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Bundling the app catches what a browser would only find at runtime: a missing file or a missing export
+      - name: App imports resolve
+        run: npx --yes esbuild@0.24 src/main.js --bundle --format=esm --outfile=/dev/null --log-level=error --external:'https://*'
+
+      - name: Server starts and migrates
+        run: |
+          cp .env.example .env
+          php -S 127.0.0.1:8080 server/router.php > /tmp/php.log 2>&1 &
+          for i in $(seq 1 20); do curl -fs http://127.0.0.1:8080/api/health && break; sleep 0.5; done
+          curl -fs http://127.0.0.1:8080/api/health | grep -q '"ok":true' || { cat /tmp/php.log; exit 1; }

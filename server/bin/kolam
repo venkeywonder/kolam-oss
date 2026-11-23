@@ -1,0 +1,114 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+// Admin commands. Run from the project folder:  php server/bin/kolam <command>
+
+use Kolam\{Account, Comments, Db, Config, History, Spaces, YText};
+
+require dirname(__DIR__) . '/bootstrap.php';
+if (PHP_SAPI !== 'cli') exit(1);
+
+$cmd = $argv[1] ?? 'help';
+$ask = function (string $q, bool $hidden = false): string {
+    echo $q;
+    if ($hidden && DIRECTORY_SEPARATOR === '/') { system('stty -echo'); $v = trim((string) fgets(STDIN)); system('stty echo'); echo "\n"; return $v; }
+    return trim((string) fgets(STDIN));
+};
+
+switch ($cmd) {
+    case 'migrate':
+        Db::pdo();
+        echo "Database ready (" . Db::$driver . ")\n";
+        break;
+
+    case 'user:create':
+        $email = strtolower($argv[2] ?? $ask('Email: '));
+        $name = $argv[3] ?? $ask('Name: ');
+        $pass = $ask('Password (8+ characters): ', true);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pass) < 8) exit("Invalid email or password too short\n");
+        if (Db::one('SELECT id FROM users WHERE email = ?', [$email])) exit("That email already has an account\n");
+        $id = 'u_' . bin2hex(random_bytes(10));
+        Db::q('INSERT INTO users (id, email, name, pass_hash, rev, created_at) VALUES (?,?,?,?,0,?)', [$id, $email, $name ?: $email, password_hash($pass, PASSWORD_DEFAULT), time()]);
+        Spaces::personal($id);
+        echo "Created $email\n";
+        break;
+
+    case 'user:password':
+        $email = strtolower($argv[2] ?? $ask('Email: '));
+        $u = Db::one('SELECT id FROM users WHERE email = ?', [$email]) ?? exit("No such user\n");
+        $pass = $ask('New password (8+ characters): ', true);
+        if (strlen($pass) < 8) exit("Too short\n");
+        Db::q('UPDATE users SET pass_hash = ? WHERE id = ?', [password_hash($pass, PASSWORD_DEFAULT), $u['id']]);
+        Db::q('DELETE FROM sessions WHERE user_id = ?', [$u['id']]);
+        echo "Password changed; all sessions signed out\n";
+        break;
+
+    case 'users':
+        foreach (Db::q('SELECT email, name, created_at, (SELECT COUNT(*) FROM entities e WHERE e.space_id = u.id AND e.deleted = 0) AS records FROM users u ORDER BY created_at') as $r) {
+            printf("%-36s %-24s %s  %d records\n", $r['email'], $r['name'], date('Y-m-d', (int) $r['created_at']), $r['records']);
+        }
+        break;
+
+    case 'backup':
+        Db::pdo();
+        if (Db::$driver !== 'sqlite') exit("MySQL/PostgreSQL: use your panel's database backups (aaPanel → Databases → Backup) or mysqldump / pg_dump\n");
+        $to = $argv[2] ?? Config::get('storage') . '/backups/kolam-' . date('Ymd-His') . '.sqlite';
+        @mkdir(dirname($to), 0775, true);
+        Db::pdo()->exec('VACUUM INTO ' . Db::pdo()->quote($to));
+        echo "Backed up to $to\n";
+        break;
+
+    case 'cleanup':
+        $n = Db::q('DELETE FROM sessions WHERE expires_at < ?', [time()])->rowCount();
+        $m = Db::q('DELETE FROM entities WHERE deleted = 1 AND updated_at < ?', [time() - 90 * 86400])->rowCount();
+        $k = Db::q('DELETE FROM rate_limits WHERE reset_at < ?', [time()])->rowCount();
+        $w = Spaces::purgeExpired();
+        $i = Db::q("DELETE FROM invites WHERE (status <> 'pending' AND created_at < ?) OR expires_at < ?", [time() - 30 * 86400, time() - 30 * 86400])->rowCount();
+        Db::q('DELETE FROM presence WHERE seen_at < ?', [time() - 300]);
+        $y = YText::prune();
+        $c = Comments::prune();
+        $o = Db::q('DELETE FROM notifications WHERE created_at < ?', [(time() - 90 * 86400) * 1000])->rowCount();
+        $h = History::prune();
+        $a = Account::purgeDue();
+        echo "Removed $n expired sessions, $m old deletion markers, $k rate-limit entries, $w deleted workspaces, $i old invitations, "
+           . "$y text-log entries of deleted cards, $c comments of deleted cards, $o old notifications, $h history entries, "
+           . "$a accounts whose deletion date passed\n";
+        break;
+
+    case 'reports':
+        // reports about share links, newest first; "reports close <id>" marks one handled
+        if (($argv[2] ?? '') === 'close' && isset($argv[3])) {
+            $n = Db::q("UPDATE reports SET status = 'closed' WHERE id = ?", [$argv[3]])->rowCount();
+            exit($n ? "Closed {$argv[3]}\n" : "No such report\n");
+        }
+        foreach (Db::q("SELECT * FROM reports WHERE status = 'open' ORDER BY created_at DESC") as $r) {
+            printf("%s  %s  %-10s link %s  board %s:%s  from %s\n    %s\n", $r['id'], date('Y-m-d H:i', (int) $r['created_at']), $r['reason'],
+                $r['share_token'], $r['space_id'], $r['board_id'], $r['email'] ?: $r['ip'], str_replace("\n", "\n    ", (string) $r['details']));
+        }
+        break;
+
+    case 'feedback':
+        // newest 50 messages sent from the app's "Send feedback" dialog
+        foreach (Db::q('SELECT * FROM feedback ORDER BY created_at DESC LIMIT 50') as $r) {
+            printf("%s  %-9s %-28s %-24s\n    %s\n", date('Y-m-d H:i', (int) $r['created_at']), $r['kind'], $r['email'] ?: '(no email)',
+                $r['page'] ?: '', str_replace("\n", "\n    ", (string) $r['body']));
+        }
+        break;
+
+    default:
+        echo <<<TXT
+        Kolam admin
+          php server/bin/kolam migrate                    create / upgrade database tables
+          php server/bin/kolam user:create [email] [name] add an account (works even when sign-ups are closed)
+          php server/bin/kolam user:password [email]      reset a password
+          php server/bin/kolam users                      list accounts
+          php server/bin/kolam backup [file]              copy the SQLite database safely while running
+          php server/bin/kolam cleanup                    prune expired sessions, old deletion markers and invitations,
+                                                             text logs and comments of deleted cards, notifications and history older
+                                                             than 90 days, workspaces deleted more than 30 days ago, and accounts
+                                                             whose scheduled deletion date has passed
+          php server/bin/kolam reports [close <id>]       list open reports about share links, or mark one handled
+          php server/bin/kolam feedback                   list the newest 50 messages sent from the app
+
+        TXT;
+}

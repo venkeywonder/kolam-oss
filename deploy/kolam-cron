@@ -1,0 +1,11 @@
+# Optional maintenance jobs. Copy to /etc/cron.d/kolam (runs as www-data), or add via your control panel's cron page.
+#
+# Panels such as aaPanel usually keep the site at /www/wwwroot/<site> and run PHP-FPM as user www; use that path and
+# user below instead of /var/www/kolam and www-data.
+
+# nightly SQLite backup, kept 14 days (SQLite installs only; MySQL/PostgreSQL use their own backups)
+15 3 * * * www-data cd /var/www/kolam && php server/bin/kolam backup >/dev/null && find storage/backups -name '*.sqlite' -mtime +14 -delete
+
+# nightly cleanup: expired sessions, old deletion markers, stale invitations, history/log pruning, and accounts whose
+# scheduled deletion date (DELETE_GRACE_DAYS) has passed
+30 3 * * * www-data cd /var/www/kolam && php server/bin/kolam cleanup >/dev/null
