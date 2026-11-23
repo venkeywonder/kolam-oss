@@ -8,3 +8,4 @@
 
 - [ ] The Check workflow passes (PHP syntax, app imports resolve)
 - [ ] `CHANGELOG.md` has a line if people will notice the change
+- [ ] I've signed the [CLA](https://github.com/venkeywonder/kolam-oss/blob/main/CLA.md) (the bot asks on your first pull request)

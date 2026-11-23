@@ -40,7 +40,13 @@ Open <http://localhost:8080>, create an account, edit files in `src/` or `server
    npx esbuild src/main.js --bundle --format=esm --outfile=/dev/null --log-level=error --external:'https://*'
    ```
 4. Add a line to `CHANGELOG.md` for anything people will notice (it's shown in the app's "What's new").
+5. Sign the [Contributor License Agreement](CLA.md). On your first pull request a bot asks you to; reply with the
+   sentence it gives you, once, and you're done for all future pull requests.
 
-By contributing, you agree that your contributions are licensed under the project's [AGPL-3.0 license](LICENSE).
+## Why a CLA?
+
+Kolam is AGPL-3.0, and the same code also runs the hosted service at [trykolam.com](https://trykolam.com), which pays
+for the project's development. The CLA lets the project use your contribution in both places. You keep the copyright
+to your work, and your contribution stays available to everyone under the AGPL.
 
 Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
