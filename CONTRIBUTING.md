@@ -18,7 +18,7 @@ PHP_CLI_SERVER_WORKERS=4 php -S localhost:8080 server/router.php
 ```
 
 Open <http://localhost:8080>, create an account, edit files in `src/` or `server/`, and reload the page.
-The README's [Project structure](README.md#project-structure) explains where things live.
+[Project structure](docs/architecture.md#project-structure) explains where things live.
 
 ## Code style
 
