@@ -17,7 +17,7 @@
   <a class="brand" href="#/b/home" title="Home" aria-label="Home">
     <img class="emblem emblem-light" src="src/assets/emblem-light.svg" width="24" height="24" alt=""><img class="emblem emblem-dark" src="src/assets/emblem-dark.svg" width="24" height="24" alt="">
   </a>
-  <button id="spaceBtn" title="Switch between your boards, workspaces and boards shared with you" aria-label="Spaces"></button>
+  <button id="spaceBtn" title="Switch between your boards, workspaces and boards shared with you" aria-label="Spaces" aria-haspopup="true" aria-expanded="false"></button>
   <nav id="crumbs" aria-label="Breadcrumbs"></nav>
   <div class="top-right">
     <button class="icon-btn" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo"></button>
@@ -72,6 +72,8 @@
   <button data-z="in" title="Zoom in (⌘+)" aria-label="Zoom in">+</button>
   <button data-z="fit" title="Fit to screen" aria-label="Fit to screen">⤢</button>
 </div>
+<div id="favBar" role="toolbar" aria-label="Favorite tools" hidden></div>
+<div id="favZone" aria-hidden="true" hidden></div>
 
 <div id="fmtbar" class="floatbar" hidden></div>
 <div id="ctxmenu" hidden></div>
@@ -82,6 +84,7 @@
 <aside id="commentsPanel" hidden aria-label="Comments"></aside>
 <aside id="historyPanel" hidden aria-label="Activity"></aside>
 <div id="notifPanel" hidden aria-label="Notifications"></div>
+<div id="spacePop" hidden aria-label="Your boards, workspaces and shared boards"></div>
 <div id="modal" hidden></div>
 
 <input type="file" id="imgPick" accept="image/*" multiple hidden>

@@ -27,10 +27,10 @@ final class Assets
             Http::fail(in_array($err, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) ? 413 : 400, 'Upload failed');
         }
         if ($f['size'] > Config::get('max_upload_mb') * 1024 * 1024) Http::fail(413, 'That file is too large');
-        // the space the file goes into; anywhere you can't reach counts as your own
+        // the space the file goes into; anywhere you can't reach counts as your home workspace
         $sid = is_string($_POST['space'] ?? null) ? $_POST['space'] : '';
         $space = $sid !== '' && preg_match('/^[uw]_[a-f0-9]{16,24}$/', $sid) ? (Db::one('SELECT * FROM spaces WHERE id = ? AND deleted_at IS NULL', [$sid]) ?: null) : null;
-        if (!$space || !Access::boards($u['id'], $space)) $space = Spaces::personal($u['id']);
+        if (!$space || !Access::boards($u['id'], $space)) $space = Spaces::home($u['id']);
         return self::store($u['id'], $f['tmp_name'], (string) ($f['name'] ?? 'file'), (int) $f['size'], null, $space['id']);
     }
 
@@ -47,6 +47,46 @@ final class Assets
         $name = mb_substr(preg_replace('/[\x00-\x1f"\\\\\/]/u', '', $name) ?: 'file', 0, 200);
         Db::upsert('assets', ['id' => $id, 'user_id' => $userId, 'space_id' => $spaceId ?? $userId, 'mime' => $mime, 'size' => $size, 'name' => $name, 'created_at' => time()], ['id']);
         return ['id' => $id, 'mime' => $mime, 'size' => $size, 'name' => $name];
+    }
+
+    /** POST assets/size {ids}: bytes of these files that count toward your storage (ones you uploaded). */
+    public static function size(array $u, array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter($ids, fn($id) => is_string($id) && preg_match('/^a_[a-z0-9]{6,40}$/', $id))));
+        if (!$ids) return ['bytes' => 0];
+        $ids = array_slice($ids, 0, 2000);
+        $sql = 'SELECT COALESCE(SUM(size), 0) s FROM assets WHERE user_id = ? AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+        return ['bytes' => (int) (Db::one($sql, array_merge([(string) $u['id']], $ids))['s'] ?? 0)];
+    }
+
+    /**
+     * Deletes these files for good if no card, board or trash entry in any space still uses them (a card that moved
+     * to another space keeps its file). Old card versions in the history may still name them; those show as missing.
+     * Call it after the transaction that dropped the references has committed. Returns the bytes freed.
+     */
+    public static function release(array $ids): int
+    {
+        $freed = 0;
+        foreach (array_unique($ids) as $id) {
+            if (!is_string($id) || !preg_match('/^a_[a-z0-9]{6,40}$/', $id)) continue;
+            if (Db::one('SELECT 1 AS x FROM entities WHERE deleted = 0 AND data LIKE ?', ['%' . $id . '%'])) continue;
+            $a = Db::one('SELECT size FROM assets WHERE id = ?', [$id]);
+            self::storage()->delete($id);
+            Db::q('DELETE FROM assets WHERE id = ?', [$id]);
+            $freed += (int) ($a['size'] ?? 0);
+        }
+        return $freed;
+    }
+
+    /** Asset ids used by the cards of a trash entry. */
+    public static function inTrashEntry(?array $t): array
+    {
+        $ids = [];
+        foreach (is_array($t['items'] ?? null) ? $t['items'] : [] as $it) {
+            $id = is_array($it) ? ($it['data']['asset'] ?? null) : null;
+            if (is_string($id) && $id !== '') $ids[] = $id;
+        }
+        return $ids;
     }
 
     public static function serve(string $id): never

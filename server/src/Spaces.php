@@ -4,53 +4,70 @@ declare(strict_types=1);
 namespace Kolam;
 
 /**
- * Spaces: each person's own boards (personal space, id = their user id) and team workspaces (id "w_…").
+ * Spaces are workspaces (id "u_…" for workspaces that began as someone's own boards, "w_…" for the others).
+ * Everyone owns at least one: their home workspace, the oldest one they own, made on first use.
  * Also the server-side operations that move or remove whole groups of records.
  */
 final class Spaces
 {
     public const WS_ROLES = ['owner', 'admin', 'member', 'guest'];
     private const TRASH_DAYS = 30;
+    private const ID = '/^(?:w_[a-f0-9]{16}|u_[a-f0-9]{20})$/';
 
-    /** The person's own space, created on first use. */
-    public static function personal(string $uid): array
+    /** The person's home workspace: the oldest one they own, created when they have none (a new account, or they gave theirs away). */
+    public static function home(string $uid): array
     {
-        $s = Db::one('SELECT * FROM spaces WHERE id = ?', [$uid]);
-        if ($s) return $s;
+        $find = fn() => Db::one("SELECT * FROM spaces WHERE owner_id = ? AND kind = 'workspace' AND deleted_at IS NULL ORDER BY created_at, id LIMIT 1", [$uid]);
+        if ($s = $find()) return $s;
         $u = Db::one('SELECT name FROM users WHERE id = ?', [$uid]) ?? Http::fail(404, 'Not found');
+        $id = Db::one('SELECT id FROM spaces WHERE id = ?', [$uid]) ? 'w_' . bin2hex(random_bytes(8)) : $uid;
         try {
-            Db::q('INSERT INTO spaces (id, kind, name, owner_id, rev, acl_rev, created_at) VALUES (?,?,?,?,0,0,?)', [$uid, 'personal', $u['name'], $uid, time()]);
+            Db::tx(function () use ($id, $uid, $u) {
+                Db::q('INSERT INTO spaces (id, kind, name, owner_id, rev, acl_rev, created_at) VALUES (?,?,?,?,0,0,?)', [$id, 'workspace', self::homeName($u['name']), $uid, time()]);
+                Db::q('INSERT INTO space_members (space_id, user_id, role, created_at) VALUES (?,?,?,?)', [$id, $uid, 'owner', time()]);
+            });
         } catch (\PDOException) {}   // created by a parallel request
-        return Db::one('SELECT * FROM spaces WHERE id = ?', [$uid]);
+        return $find() ?? Http::fail(500, 'Could not create your workspace');
     }
 
-    /** Everywhere the person can go: own boards, workspaces, boards shared with them, and invitations waiting for them. */
+    /** "Venkey's workspace" for "Venkey Rao" (a plain apostrophe, so the name is easy to type when asked to confirm). */
+    private static function homeName(string $name): string
+    {
+        $first = trim(explode(' ', trim($name))[0] ?? '');
+        return $first === '' || str_contains($first, '@') ? 'My workspace' : mb_substr($first, 0, 100) . "'s workspace";
+    }
+
+    /** Workspaces the person owns that aren't in the trash. */
+    private static function ownedCount(string $uid): int
+    {
+        return (int) Db::one("SELECT COUNT(*) AS n FROM spaces WHERE owner_id = ? AND kind = 'workspace' AND deleted_at IS NULL", [$uid])['n'];
+    }
+
+    /** Everywhere the person can go: their workspaces (home first; guests see the boards shared with them) and invitations waiting for them. */
     public static function contexts(array $u): array
     {
         $uid = $u['id'];
-        $own = self::personal($uid);
+        $home = self::home($uid);
         $workspaces = [];
         foreach (Db::q("SELECT s.id, s.name, m.role FROM space_members m JOIN spaces s ON s.id = m.space_id
                         WHERE m.user_id = ? AND m.left_at IS NULL AND s.deleted_at IS NULL AND m.role <> 'guest' ORDER BY s.name", [$uid]) as $r) {
             $n = (int) Db::one("SELECT COUNT(*) AS n FROM space_members WHERE space_id = ? AND left_at IS NULL AND role <> 'guest'", [$r['id']])['n'];
-            $workspaces[] = ['id' => $r['id'], 'name' => $r['name'], 'role' => $r['role'], 'members' => $n];
+            $workspaces[$r['id']] = ['id' => $r['id'], 'name' => $r['name'], 'role' => $r['role'], 'members' => $n];
         }
-        $shared = [];
         $spaceIds = array_column(Db::q('SELECT DISTINCT space_id FROM board_members WHERE user_id = ? AND left_at IS NULL', [$uid])->fetchAll(), 'space_id');
         foreach ($spaceIds as $sid) {
+            if (isset($workspaces[$sid])) continue;
             $s = Db::one('SELECT * FROM spaces WHERE id = ? AND deleted_at IS NULL', [$sid]);
             if (!$s || Access::blanket(Access::spaceRole($uid, $s)) !== null) continue;
-            $boards = Access::boards($uid, $s);
-            $roots = Access::roots($boards, $sid);
+            $roots = Access::roots(Access::boards($uid, $s), $sid);
             if (!$roots) continue;
-            $titles = self::titles($sid, $roots);
-            $from = $s['kind'] === 'personal' ? (Db::one('SELECT name FROM users WHERE id = ?', [$s['owner_id']])['name'] ?? 'Someone') : $s['name'];
-            foreach ($roots as $b) $shared[] = ['space' => $sid, 'board' => $b, 'title' => $titles[$b] ?? 'Untitled board',
-                                                'role' => $boards[$b], 'from' => $from, 'kind' => $s['kind']];
+            // a guest on some of its boards: it's listed with the workspaces and opens on the first of them
+            $n = (int) Db::one("SELECT COUNT(*) AS n FROM space_members WHERE space_id = ? AND left_at IS NULL AND role <> 'guest'", [$sid])['n'];
+            $workspaces[$sid] = ['id' => $sid, 'name' => $s['name'], 'role' => 'guest', 'members' => $n, 'board' => $roots[0], 'boards' => count($roots)];
         }
-        usort($shared, fn($a, $b) => strcasecmp($a['title'], $b['title']));
-        return ['personal' => ['id' => $own['id'], 'name' => 'My boards'], 'workspaces' => $workspaces, 'shared' => $shared,
-                'invites' => Invites::pendingFor($u)];
+        $workspaces = array_values($workspaces);
+        usort($workspaces, fn($a, $b) => [$a['id'] !== $home['id'], strtolower($a['name'])] <=> [$b['id'] !== $home['id'], strtolower($b['name'])]);
+        return ['home' => $home['id'], 'workspaces' => $workspaces, 'invites' => Invites::pendingFor($u)];
     }
 
     /** Board titles: id => title. */
@@ -86,7 +103,7 @@ final class Spaces
     /** A workspace the person belongs to (any role), with their role. */
     private static function ws(array $u, string $id, bool $allowDeleted = false): array
     {
-        if (!preg_match('/^w_[a-f0-9]{16}$/', $id)) Http::fail(404, 'Workspace not found');
+        if (!preg_match(self::ID, $id)) Http::fail(404, 'Workspace not found');
         $s = Db::one("SELECT * FROM spaces WHERE id = ? AND kind = 'workspace'", [$id]);
         if (!$s || (!$allowDeleted && $s['deleted_at'] !== null)) Http::fail(404, 'Workspace not found');
         $s['me'] = $s['deleted_at'] === null ? Access::spaceRole($u['id'], $s) : ($s['owner_id'] === $u['id'] ? 'owner' : null);
@@ -113,7 +130,8 @@ final class Spaces
         $order = array_flip(self::WS_ROLES);
         usort($members, fn($a, $b) => [$order[$a['role']], strtolower($a['name'])] <=> [$order[$b['role']], strtolower($b['name'])]);
         return ['id' => $id, 'name' => $s['name'], 'role' => $s['me'], 'canManage' => $manage, 'members' => $members,
-                'former' => $former, 'invites' => $manage ? Invites::listFor($id, null) : [], 'mail' => Mailer::configured()];
+                'former' => $former, 'invites' => $manage ? Invites::listFor($id, null) : [], 'mail' => Mailer::configured(),
+                'canDelete' => $s['me'] === 'owner' && self::ownedCount($u['id']) > 1];
     }
 
     public static function rename(array $u, string $id, array $in): array
@@ -198,15 +216,16 @@ final class Spaces
         return self::info($u, $id);
     }
 
-    /** Owner only, after typing the name. The workspace waits in the owner's trash for 30 days. */
+    /** Owner only, after typing the name, and never the last workspace they own. It waits in the owner's trash for 30 days. */
     public static function delete(array $u, string $id, array $in): array
     {
         $s = self::ws($u, $id);
         if ($s['me'] !== 'owner') Http::fail(403, 'Only the workspace owner can delete it');
+        if (self::ownedCount($u['id']) <= 1) Http::fail(409, 'This is your only workspace, so it can’t be deleted');
         if (trim((string) ($in['name'] ?? '')) !== $s['name']) Http::fail(422, 'Type the workspace’s name to confirm');
         Db::tx(function () use ($u, $id, $s) {
             Db::q('UPDATE spaces SET deleted_at = ? WHERE id = ?', [time(), $id]);
-            $own = self::personal($u['id'])['id'];
+            $own = self::home($u['id'])['id'];
             $t = ['id' => 'ws-' . $id, 'at' => (int) (microtime(true) * 1000), 'from' => 'home', 'type' => 'workspace', 'space' => $id,
                   'label' => 'Workspace “' . $s['name'] . '”', 'items' => [], 'boards' => [], 'lines' => [],
                   'by' => ['id' => $u['id'], 'name' => $u['name']], 'purgeAt' => (time() + self::TRASH_DAYS * 86400) * 1000];
@@ -239,14 +258,17 @@ final class Spaces
             Db::q('DELETE FROM spaces WHERE id = ?', [$id]);
             self::dropTrashEntry($s['owner_id'], $id);
         });
+        // its files, unless a card that moved to another space still uses one
+        if (!Db::pdo()->inTransaction()) Assets::release(array_column(Db::q('SELECT id FROM assets WHERE space_id = ?', [$id])->fetchAll(), 'id'));
         return ['ok' => true];
     }
 
     private static function dropTrashEntry(string $ownerId, string $wsId): void
     {
-        $own = self::personal($ownerId)['id'];
-        if (Db::one("SELECT id FROM entities WHERE space_id = ? AND kind = 'trash' AND id = ? AND deleted = 0", [$own, 'ws-' . $wsId])) {
-            Sync::put($own, Sync::bump($own), 'trash', 'ws-' . $wsId, null, null, $ownerId, true);
+        // the trash entry sits in the home workspace the owner had when they deleted it
+        foreach (Db::q("SELECT e.space_id FROM entities e JOIN spaces s ON s.id = e.space_id
+                        WHERE s.owner_id = ? AND e.kind = 'trash' AND e.id = ? AND e.deleted = 0", [$ownerId, 'ws-' . $wsId])->fetchAll() as $r) {
+            Sync::put($r['space_id'], Sync::bump($r['space_id']), 'trash', 'ws-' . $wsId, null, null, $ownerId, true);
         }
     }
 
@@ -381,5 +403,100 @@ final class Spaces
             }
         }
         Access::changed($fromId); Access::changed($toId);
+    }
+
+    /* ---------- one-time move from "My boards" to workspaces (schema 23) ---------- */
+
+    /**
+     * Each person's own boards ("personal" spaces) become their home workspace. Someone who already owns a workspace gets
+     * their own boards merged into the oldest one, as a board called "My boards"; everyone else's turns into a workspace in place.
+     */
+    public static function migratePersonal(): void
+    {
+        foreach (Db::q("SELECT s.*, u.name AS uname FROM spaces s JOIN users u ON u.id = s.owner_id WHERE s.kind = 'personal'")->fetchAll() as $p) {
+            Db::tx(function () use ($p) {
+                $to = Db::one("SELECT * FROM spaces WHERE owner_id = ? AND kind = 'workspace' AND deleted_at IS NULL ORDER BY created_at, id LIMIT 1", [$p['owner_id']]);
+                if ($to) self::mergeInto($p, $to);
+                else {
+                    Db::q("UPDATE spaces SET kind = 'workspace', name = ? WHERE id = ?", [self::homeName((string) $p['uname']), $p['id']]);
+                    Db::upsert('space_members', ['space_id' => $p['id'], 'user_id' => $p['owner_id'], 'role' => 'owner', 'created_at' => time(), 'left_at' => null], ['space_id', 'user_id']);
+                    self::guestsFromGrants($p['id']);
+                    Access::changed($p['id']);
+                }
+            });
+        }
+        // spaces of accounts that no longer exist
+        Db::q("DELETE FROM spaces WHERE kind = 'personal'");
+    }
+
+    /** People with board grants join the workspace as guests, as Invites::addToBoard does for new grants. */
+    private static function guestsFromGrants(string $spaceId): void
+    {
+        foreach (Db::q('SELECT DISTINCT user_id FROM board_members WHERE space_id = ? AND left_at IS NULL', [$spaceId])->fetchAll() as $r) {
+            if (Db::one('SELECT user_id FROM space_members WHERE space_id = ? AND user_id = ?', [$spaceId, $r['user_id']])) continue;
+            Db::q('INSERT INTO space_members (space_id, user_id, role, created_at) VALUES (?,?,?,?)', [$spaceId, $r['user_id'], 'guest', time()]);
+        }
+    }
+
+    /** Everything in the personal space $from moves into the workspace $to; its top board becomes the board "My boards" there. */
+    private static function mergeInto(array $from, array $to): void
+    {
+        $fid = $from['id']; $tid = $to['id']; $owner = $from['owner_id'];
+        $nb = 'mb' . bin2hex(random_bytes(5));
+        $board = fn(?string $b) => $b === 'home' ? $nb : $b;
+        // deleted records only mattered to the devices syncing the old space
+        Db::q('DELETE FROM entities WHERE space_id = ? AND deleted = 1', [$fid]);
+        $hasHome = (bool) Db::one("SELECT id FROM entities WHERE space_id = ? AND kind = 'board' AND id = 'home'", [$fid]);
+        // ids are random, so a clash is only an old deleted copy (dropped); a live clash keeps the workspace's own copy
+        foreach (Db::q('SELECT f.kind, f.id, t.deleted FROM entities f JOIN entities t ON t.space_id = ? AND t.kind = f.kind AND t.id = f.id WHERE f.space_id = ?', [$tid, $fid])->fetchAll() as $c) {
+            if ($c['kind'] === 'board' && $c['id'] === 'home') continue;
+            Db::q('DELETE FROM entities WHERE space_id = ? AND kind = ? AND id = ?', [$c['deleted'] ? $tid : $fid, $c['kind'], $c['id']]);
+            if (!$c['deleted']) error_log("[kolam] merging $fid into $tid: dropped {$c['kind']} {$c['id']}, which exists in both");
+        }
+        // whatever pointed at the old top board now points at "My boards"
+        foreach (Db::q('SELECT kind, id, parent, data FROM entities WHERE space_id = ?', [$fid])->fetchAll() as $r) {
+            $d = json_decode((string) $r['data'], true);
+            if (!is_array($d)) continue;
+            $id = $r['id'];
+            if ($r['kind'] === 'board' && $id === 'home') {
+                $id = $nb; $d['id'] = $nb; $d['parent'] = 'home'; $d['title'] = 'My boards';
+            } elseif ($r['kind'] === 'board') $d['parent'] = $board($d['parent'] ?? null);
+            elseif ($r['kind'] === 'item' || $r['kind'] === 'line') {
+                $d['board'] = $board($d['board'] ?? null);
+                if (isset($d['data']['target'])) $d['data']['target'] = $board($d['data']['target']);
+            } elseif ($r['kind'] === 'trash') {
+                $d['from'] = $board($d['from'] ?? null);
+                foreach (['items', 'lines'] as $k) foreach ($d[$k] ?? [] as $i => $x) $d[$k][$i]['board'] = $board($x['board'] ?? null);
+                foreach ($d['boards'] ?? [] as $i => $x) $d['boards'][$i]['parent'] = $board($x['parent'] ?? null);
+            }
+            $parent = $r['kind'] === 'board' && $r['id'] === 'home' ? 'home' : $board($r['parent']);
+            Db::q('UPDATE entities SET id = ?, parent = ?, data = ? WHERE space_id = ? AND kind = ? AND id = ?',
+                [$id, $parent, json_encode($d, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $fid, $r['kind'], $r['id']]);
+        }
+        $rev = Sync::bump($tid);
+        Db::q('UPDATE entities SET space_id = ?, rev = ? WHERE space_id = ?', [$tid, $rev, $fid]);
+        // the card that opens "My boards", below what's on the workspace's top board
+        if ($hasHome) {
+            $maxY = 40; $maxZ = 0;
+            foreach (Db::q("SELECT data FROM entities WHERE space_id = ? AND kind = 'item' AND parent = 'home' AND deleted = 0", [$tid]) as $r) {
+                $d = json_decode((string) $r['data'], true);
+                if (!is_array($d) || !empty($d['col'])) continue;
+                $maxY = max($maxY, (int) ($d['y'] ?? 0) + (int) ($d['h'] ?? 200) + 40); $maxZ = max($maxZ, (int) ($d['z'] ?? 0));
+            }
+            $card = ['id' => 'mb' . bin2hex(random_bytes(5)), 'board' => 'home', 'type' => 'board', 'x' => 40, 'y' => $maxY, 'w' => 150,
+                     'z' => $maxZ + 1, 'col' => null, 'order' => 0, 'color' => null, 'data' => ['target' => $nb, 'title' => 'My boards']];
+            Sync::put($tid, $rev, 'item', $card['id'], $card, 'home', $owner, false);
+        }
+        // the rest of what belonged to the space
+        Db::q("UPDATE history SET entity_id = ? WHERE space_id = ? AND kind = 'board' AND entity_id = 'home'", [$nb, $fid]);
+        foreach (['board_members', 'board_access', 'shares', 'invites', 'history', 'notifications', 'reports'] as $t) {
+            Db::q("UPDATE $t SET space_id = ?, board_id = CASE WHEN board_id = 'home' THEN ? ELSE board_id END WHERE space_id = ?", [$tid, $nb, $fid]);
+        }
+        foreach (['comments', 'comment_threads'] as $t) Db::q("UPDATE $t SET space_id = ?, rev = ? WHERE space_id = ?", [$tid, $rev, $fid]);
+        foreach (['ylog', 'assets'] as $t) Db::q("UPDATE $t SET space_id = ? WHERE space_id = ?", [$tid, $fid]);
+        Db::q('DELETE FROM presence WHERE space_id = ?', [$fid]);
+        Db::q('DELETE FROM spaces WHERE id = ?', [$fid]);
+        self::guestsFromGrants($tid);
+        Access::changed($tid);
     }
 }

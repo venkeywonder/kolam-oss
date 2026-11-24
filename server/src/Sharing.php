@@ -22,13 +22,9 @@ final class Sharing
         $grants = Access::grants($spaceId);
         $titles = Spaces::titles($spaceId, array_keys($tree));
         $people = [];
-        // people with access to the whole space
-        if ($space['kind'] === 'personal') {
-            $people[$space['owner_id']] = ['role' => 'owner', 'via' => 'owner'];
-        } else {
-            foreach (Db::q("SELECT user_id, role FROM space_members WHERE space_id = ? AND left_at IS NULL AND role <> 'guest'", [$spaceId]) as $r) {
-                $people[$r['user_id']] = ['role' => Access::blanket($r['role']), 'via' => 'workspace', 'wsRole' => $r['role']];
-            }
+        // people with access to the whole workspace
+        foreach (Db::q("SELECT user_id, role FROM space_members WHERE space_id = ? AND left_at IS NULL AND role <> 'guest'", [$spaceId]) as $r) {
+            $people[$r['user_id']] = ['role' => Access::blanket($r['role']), 'via' => 'workspace', 'wsRole' => $r['role']];
         }
         foreach ($grants as $uid => $g) {
             if (isset($people[$uid])) continue;
@@ -56,9 +52,7 @@ final class Sharing
                              'cards' => Spaces::cardCount($spaceId, $r['user_id'], Access::subtree($spaceId, $board))];
             }
         }
-        $owner = $space['kind'] === 'personal'
-            ? ['kind' => 'person', 'id' => $space['owner_id'], 'name' => Access::names([$space['owner_id']])[$space['owner_id']]['name'] ?? '']
-            : ['kind' => 'workspace', 'id' => $spaceId, 'name' => $space['name']];
+        $owner = ['kind' => 'workspace', 'id' => $spaceId, 'name' => $space['name'], 'mine' => $space['owner_id'] === $u['id']];
         return [
             'space' => $spaceId, 'board' => $board, 'title' => $titles[$board] ?? 'Untitled board',
             'role' => $me, 'canManage' => $manage, 'owner' => $owner,
@@ -136,15 +130,15 @@ final class Sharing
         return self::info($u, $spaceId, $board);
     }
 
-    /** Give a board in your own space to someone who already has access; you stay on as an editor. */
+    /** Give a board in a workspace you own to someone who already has access: it moves to their home workspace and you stay on as an editor. */
     public static function transfer(array $u, string $spaceId, string $board, array $in): array
     {
         $space = self::board($spaceId, $board);
         Access::need($u['id'], $space, $board, 'owner');
-        if ($space['kind'] !== 'personal') Http::fail(422, 'Boards in a workspace belong to the workspace');
+        if ($space['owner_id'] !== $u['id']) Http::fail(403, 'Only the workspace owner can give its boards away');
         $target = (string) ($in['user'] ?? '');
         if ($target === $u['id'] || Access::role($target, $space, $board) === null) Http::fail(422, 'Pick someone who already has access to this board');
-        $to = Spaces::personal($target);
+        $to = Spaces::home($target);
         Db::tx(function () use ($u, $spaceId, $board, $target, $to) {
             Spaces::moveBoard($u, $spaceId, $board, $to['id'], 'home');
             Db::q('DELETE FROM board_members WHERE space_id = ? AND board_id = ? AND user_id = ?', [$to['id'], $board, $target]);

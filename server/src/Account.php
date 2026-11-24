@@ -64,8 +64,6 @@ final class Account
             foreach (Db::q("SELECT id FROM spaces WHERE kind = 'workspace' AND owner_id = ? AND deleted_at IS NULL", [$userId]) as $w) {
                 self::transferOrNuke($w['id'], $userId);
             }
-            // the person's own boards
-            self::nukeSpace($userId);
         });
         // files this person uploaded that nothing left references
         self::orphanAssets($userId);
@@ -117,13 +115,7 @@ final class Account
     /** Assets $uploaderId stored that no remaining space references any more. */
     private static function orphanAssets(string $uploaderId): void
     {
-        $ids = array_column(Db::q('SELECT id FROM assets WHERE user_id = ?', [$uploaderId])->fetchAll(), 'id');
-        foreach ($ids as $id) {
-            $used = Db::one("SELECT 1 AS x FROM entities WHERE deleted = 0 AND data LIKE ?", ['%' . $id . '%']);
-            if ($used) continue;
-            Assets::storage()->delete($id);
-            Db::q('DELETE FROM assets WHERE id = ?', [$id]);
-        }
+        Assets::release(array_column(Db::q('SELECT id FROM assets WHERE user_id = ?', [$uploaderId])->fetchAll(), 'id'));
     }
 
     private static function rmdir(string $dir): void

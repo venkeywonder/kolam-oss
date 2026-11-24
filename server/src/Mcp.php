@@ -10,6 +10,8 @@ namespace Kolam;
 final class Mcp
 {
     private const VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+    /** Classes that each offer some tools: definitions() for tools/list, call($u, $name, $args) to run one of theirs. */
+    private const MODULES = [BoardTools::class, LayoutTools::class, TemplateTools::class, HistoryTools::class, PeopleTools::class];
 
     public static function handle(array $u): never
     {
@@ -41,15 +43,19 @@ final class Mcp
             $result = match ($method) {
                 'initialize' => [
                     'protocolVersion' => in_array($p['protocolVersion'] ?? '', self::VERSIONS, true) ? $p['protocolVersion'] : self::VERSIONS[1],
-                    'capabilities' => ['tools' => ['listChanged' => false]],
+                    'capabilities' => ['tools' => ['listChanged' => false], 'prompts' => ['listChanged' => false]],
                     'serverInfo' => ['name' => 'kolam', 'title' => 'Kolam', 'version' => '2.0.0'],
                     'instructions' => BoardTools::INSTRUCTIONS,
                 ],
                 'ping' => new \stdClass(),
-                'tools/list' => ['tools' => BoardTools::definitions()],
+                'tools/list' => ['tools' => array_merge(...array_map(fn($c) => $c::definitions(), self::MODULES))],
                 'tools/call' => self::call($u, $p),
+                'prompts/list' => ['prompts' => McpPrompts::definitions()],
+                'prompts/get' => McpPrompts::get((string) ($p['name'] ?? ''), is_array($p['arguments'] ?? null) ? $p['arguments'] : []),
                 default => null,
             };
+        } catch (ToolError $e) {   // a prompt that doesn't exist or is missing an argument
+            return self::error($id, -32602, $e->getMessage());
         } catch (HttpError $e) {
             return self::error($id, -32603, $e->getMessage());
         }
@@ -61,12 +67,21 @@ final class Mcp
         $name = (string) ($p['name'] ?? '');
         $args = is_array($p['arguments'] ?? null) ? $p['arguments'] : [];
         try {
-            $data = BoardTools::call($u, $name, $args);
+            $data = self::module($name)::call($u, $name, $args);
             $text = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             return ['content' => [['type' => 'text', 'text' => $text]]];
         } catch (ToolError | HttpError $e) {
             return ['content' => [['type' => 'text', 'text' => 'Error: ' . $e->getMessage()]], 'isError' => true];
         }
+    }
+
+    /** The class that offers tool $name. */
+    private static function module(string $name): string
+    {
+        foreach (self::MODULES as $c) {
+            foreach ($c::definitions() as $d) if ($d['name'] === $name) return $c;
+        }
+        throw new ToolError("Unknown tool $name");
     }
 
     private static function error(mixed $id, int $code, string $message): array

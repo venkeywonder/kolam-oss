@@ -1,0 +1,145 @@
+[
+  {
+    "id": "mood", "name": "Moodboard", "desc": "Imagery, colours and words that set the tone.", "color": "#7b55d9",
+    "build": [
+      { "op": "note", "x": 0, "y": 0, "w": 320, "html": "<h1>Moodboard</h1><p>What feeling should this project leave people with?</p>" },
+      { "op": "column", "ref": "img", "x": 0, "y": 170, "w": 300, "title": "Imagery" },
+      { "op": "inCol", "col": "img", "type": "note", "html": "<p>Drop reference images into this column.</p>" },
+      { "op": "column", "ref": "words", "x": 330, "y": 170, "w": 220, "title": "Words" },
+      { "op": "inCol", "col": "words", "type": "note", "html": "<h2>Calm</h2>" },
+      { "op": "inCol", "col": "words", "type": "note", "html": "<h2>Tactile</h2>" },
+      { "op": "inCol", "col": "words", "type": "note", "html": "<h2>Honest</h2>" },
+      { "op": "inCol", "col": "words", "type": "note", "html": "<h2>Warm</h2>" },
+      { "op": "swatch", "x": 360, "y": 0, "hex": "#264653" },
+      { "op": "swatch", "x": 510, "y": 0, "hex": "#2a9d8f" },
+      { "op": "swatch", "x": 660, "y": 0, "hex": "#e9c46a" },
+      { "op": "swatch", "x": 810, "y": 0, "hex": "#f4a261" },
+      { "op": "swatch", "x": 960, "y": 0, "hex": "#e76f51" },
+      { "op": "note", "x": 580, "y": 170, "w": 280, "html": "<h2>Typography</h2><p>Headings: a confident serif. Body: a quiet sans.</p>" }
+    ]
+  },
+  {
+    "id": "kanban", "name": "Project plan", "desc": "Backlog, to do, doing and done columns.", "color": "#3478e5",
+    "build": [
+      { "op": "note", "x": 0, "y": 0, "w": 380, "html": "<h1>Project plan</h1><p>Move cards from left to right as work progresses.</p>" },
+      { "op": "column", "ref": "c0", "x": 0, "y": 130, "w": 280, "title": "Backlog" },
+      { "op": "inCol", "col": "c0", "type": "note", "html": "<p>Research competitors</p>" },
+      { "op": "inCol", "col": "c0", "type": "note", "html": "<p>Collect user quotes</p>" },
+      { "op": "column", "ref": "c1", "x": 300, "y": 130, "w": 280, "title": "To do" },
+      { "op": "inCol", "col": "c1", "type": "note", "html": "<p>Write the brief</p>" },
+      { "op": "inCol", "col": "c1", "type": "note", "html": "<p>Sketch first concepts</p>" },
+      { "op": "column", "ref": "c2", "x": 600, "y": 130, "w": 280, "title": "Doing" },
+      { "op": "inCol", "col": "c2", "type": "note", "html": "<p>Kick-off meeting prep</p>" },
+      { "op": "column", "ref": "c3", "x": 900, "y": 130, "w": 280, "title": "Done", "color": "green" },
+      { "op": "inCol", "col": "c3", "type": "note", "html": "<p>Set up this board</p>" },
+      { "op": "todo", "x": 1200, "y": 130, "color": "yellow", "title": "Milestones", "tasks": ["Brief approved", "Concepts reviewed", "Launch"] }
+    ]
+  },
+  {
+    "id": "mind", "name": "Mind map", "desc": "A central idea branching into topics.", "color": "#db4c9a",
+    "build": [
+      { "op": "note", "ref": "center", "x": 360, "y": 220, "w": 240, "color": "pink", "html": "<h1>Central idea</h1>" },
+      { "op": "note", "ref": "n0", "x": 0, "y": 0, "w": 220, "html": "<h2>Who is it for?</h2>" },
+      { "op": "line", "from": "center", "to": "n0", "arrow": false, "color": "pink" },
+      { "op": "note", "ref": "n1", "x": 360, "y": -40, "w": 220, "html": "<h2>Why now?</h2>" },
+      { "op": "line", "from": "center", "to": "n1", "arrow": false, "color": "pink" },
+      { "op": "note", "ref": "n2", "x": 720, "y": 0, "w": 220, "html": "<h2>How might it work?</h2>" },
+      { "op": "line", "from": "center", "to": "n2", "arrow": false, "color": "pink" },
+      { "op": "note", "ref": "n3", "x": 740, "y": 420, "w": 220, "html": "<h2>Risks</h2>" },
+      { "op": "line", "from": "center", "to": "n3", "arrow": false, "color": "pink" },
+      { "op": "note", "ref": "n4", "x": 360, "y": 470, "w": 220, "html": "<h2>What success looks like</h2>" },
+      { "op": "line", "from": "center", "to": "n4", "arrow": false, "color": "pink" },
+      { "op": "note", "ref": "n5", "x": 0, "y": 420, "w": 220, "html": "<h2>Open questions</h2>" },
+      { "op": "line", "from": "center", "to": "n5", "arrow": false, "color": "pink" }
+    ]
+  },
+  {
+    "id": "story", "name": "Storyboard", "desc": "Scenes in sequence with shot and audio notes.", "color": "#ee8a26",
+    "build": [
+      { "op": "note", "x": 0, "y": 0, "w": 420, "html": "<h1>Storyboard</h1><p>One column per scene. Sketch the frame, then note the shot and sound.</p>" },
+      { "op": "column", "ref": "sc0", "x": 0, "y": 130, "w": 290, "title": "Scene 1" },
+      { "op": "inCol", "col": "sc0", "type": "sketch", "h": 170 },
+      { "op": "inCol", "col": "sc0", "type": "note", "html": "<p><b>Shot:</b> </p><p><b>Audio:</b> </p><p><b>Duration:</b> </p>" },
+      { "op": "column", "ref": "sc1", "x": 320, "y": 130, "w": 290, "title": "Scene 2" },
+      { "op": "inCol", "col": "sc1", "type": "sketch", "h": 170 },
+      { "op": "inCol", "col": "sc1", "type": "note", "html": "<p><b>Shot:</b> </p><p><b>Audio:</b> </p><p><b>Duration:</b> </p>" },
+      { "op": "line", "from": "sc0", "to": "sc1" },
+      { "op": "column", "ref": "sc2", "x": 640, "y": 130, "w": 290, "title": "Scene 3" },
+      { "op": "inCol", "col": "sc2", "type": "sketch", "h": 170 },
+      { "op": "inCol", "col": "sc2", "type": "note", "html": "<p><b>Shot:</b> </p><p><b>Audio:</b> </p><p><b>Duration:</b> </p>" },
+      { "op": "line", "from": "sc1", "to": "sc2" },
+      { "op": "column", "ref": "sc3", "x": 960, "y": 130, "w": 290, "title": "Scene 4" },
+      { "op": "inCol", "col": "sc3", "type": "sketch", "h": 170 },
+      { "op": "inCol", "col": "sc3", "type": "note", "html": "<p><b>Shot:</b> </p><p><b>Audio:</b> </p><p><b>Duration:</b> </p>" },
+      { "op": "line", "from": "sc2", "to": "sc3" }
+    ]
+  },
+  {
+    "id": "brain", "name": "Brainstorm", "desc": "A prompt, idea columns and a shortlist.", "color": "#e2b000",
+    "build": [
+      { "op": "note", "x": 0, "y": 0, "w": 420, "color": "yellow", "html": "<h1>How might we…?</h1><p>Write the challenge here. Quantity first, judgement later.</p>" },
+      { "op": "column", "x": 0, "y": 170, "w": 280, "title": "Wild ideas" },
+      { "op": "inCol", "col": "$prev", "type": "note", "html": "" },
+      { "op": "column", "x": 300, "y": 170, "w": 280, "title": "Practical ideas" },
+      { "op": "inCol", "col": "$prev", "type": "note", "html": "" },
+      { "op": "column", "x": 600, "y": 170, "w": 280, "title": "Questions" },
+      { "op": "inCol", "col": "$prev", "type": "note", "html": "" },
+      { "op": "todo", "x": 900, "y": 170, "color": "green", "title": "Shortlist", "tasks": ["", "", ""] }
+    ]
+  },
+  {
+    "id": "week", "name": "Weekly planner", "desc": "One column per day plus priorities.", "color": "#35a35a",
+    "build": [
+      { "op": "todo", "x": 0, "y": 0, "w": 300, "color": "yellow", "title": "Top priorities this week", "tasks": ["", "", ""] },
+      { "op": "column", "x": 330, "y": 0, "w": 250, "title": "Monday" },
+      { "op": "inCol", "col": "$prev", "type": "todo", "title": "", "tasks": [""] },
+      { "op": "column", "x": 600, "y": 0, "w": 250, "title": "Tuesday" },
+      { "op": "inCol", "col": "$prev", "type": "todo", "title": "", "tasks": [""] },
+      { "op": "column", "x": 870, "y": 0, "w": 250, "title": "Wednesday" },
+      { "op": "inCol", "col": "$prev", "type": "todo", "title": "", "tasks": [""] },
+      { "op": "column", "x": 1140, "y": 0, "w": 250, "title": "Thursday" },
+      { "op": "inCol", "col": "$prev", "type": "todo", "title": "", "tasks": [""] },
+      { "op": "column", "x": 1410, "y": 0, "w": 250, "title": "Friday" },
+      { "op": "inCol", "col": "$prev", "type": "todo", "title": "", "tasks": [""] },
+      { "op": "column", "x": 1680, "y": 0, "w": 250, "title": "Weekend" },
+      { "op": "inCol", "col": "$prev", "type": "todo", "title": "", "tasks": [""] }
+    ]
+  },
+  {
+    "id": "meeting", "name": "Meeting notes", "desc": "Agenda, notes, decisions and actions.", "color": "#1a9e93",
+    "build": [
+      { "op": "note", "x": 0, "y": 0, "w": 420, "html": "<h1>Meeting · {{date}}</h1><p><b>Attendees:</b> </p>" },
+      { "op": "column", "ref": "agenda", "x": 0, "y": 150, "w": 260, "title": "Agenda" },
+      { "op": "inCol", "col": "agenda", "type": "note", "html": "<p>Updates</p>" },
+      { "op": "inCol", "col": "agenda", "type": "note", "html": "<p>Discussion</p>" },
+      { "op": "inCol", "col": "agenda", "type": "note", "html": "<p>Next steps</p>" },
+      { "op": "note", "x": 290, "y": 150, "w": 320, "html": "<h2>Notes</h2><p></p>" },
+      { "op": "note", "x": 640, "y": 150, "w": 260, "color": "blue", "html": "<h2>Decisions</h2><ul><li></li></ul>" },
+      { "op": "todo", "x": 640, "y": 330, "w": 260, "color": "yellow", "title": "Action items", "tasks": ["", ""] }
+    ]
+  },
+  {
+    "id": "research", "name": "Research", "desc": "Sources, quotes, insights and open questions.", "color": "#e5534b",
+    "build": [
+      { "op": "note", "x": 0, "y": 0, "w": 420, "html": "<h1>Research</h1><p>Paste links into Sources. Pull key quotes out, then group them into insights.</p>" },
+      { "op": "column", "x": 0, "y": 150, "w": 280, "title": "Sources" },
+      { "op": "inCol", "col": "$prev", "type": "note", "html": "<p>Paste a link anywhere on the board to add a preview card.</p>" },
+      { "op": "column", "x": 300, "y": 150, "w": 280, "title": "Quotes" },
+      { "op": "inCol", "col": "$prev", "type": "note", "html": "<p>\u201cAdd memorable quotes here.\u201d</p>" },
+      { "op": "column", "x": 600, "y": 150, "w": 280, "title": "Insights" },
+      { "op": "inCol", "col": "$prev", "type": "note", "html": "<p>What patterns are you seeing?</p>" },
+      { "op": "todo", "x": 900, "y": 150, "color": "purple", "title": "Open questions", "tasks": [""] }
+    ]
+  },
+  {
+    "id": "writing", "name": "Writing", "desc": "A document, an outline and a notes column.", "color": "#6b5b95",
+    "build": [
+      { "op": "doc", "x": 0, "y": 0, "w": 360, "title": "Draft", "html": "<p>Start writing here.</p>" },
+      { "op": "column", "ref": "outline", "x": 400, "y": 0, "w": 260, "title": "Outline" },
+      { "op": "inCol", "col": "outline", "type": "note", "html": "<p>Introduction</p>" },
+      { "op": "inCol", "col": "outline", "type": "note", "html": "<p>Main point</p>" },
+      { "op": "inCol", "col": "outline", "type": "note", "html": "<p>Conclusion</p>" },
+      { "op": "note", "x": 690, "y": 0, "w": 280, "color": "teal", "html": "<h2>Notes</h2><p>Stray ideas and references go here.</p>" }
+    ]
+  }
+]

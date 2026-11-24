@@ -1,7 +1,7 @@
 /* Top bar and board bar: Export / View / More / account menus, search toggle, avatar. */
 import { $, esc } from '../core/util.js';
 import { icon } from './icons.js';
-import { RO, S, VIEW, checkpoint, cur, isPersonal, resetUndo, save, setCur, setS, user } from '../core/store.js';
+import { ACC, RO, S, VIEW, checkpoint, cur, isHome, resetUndo, save, setCur, setS, user } from '../core/store.js';
 import { seed } from '../core/seed.js';
 import { render, renderBoard } from '../canvas/render.js';
 import { fit, zoomCenter } from '../canvas/viewport.js';
@@ -12,7 +12,8 @@ import { confirmDialog, downloadText, fileSafe } from './modal.js';
 import { boardToMd, exportPNG, mdToText } from '../features/export.js';
 import { exportAll } from '../features/io.js';
 import { templateGallery } from '../features/templates.js';
-import { clipperDialog, showHelp } from './help.js';
+import { showHelp } from './help.js';
+import { clipperDialog } from './clipper.js';
 import { getPref, setTheme, userName } from './theme.js';
 import { signOut } from './auth.js';
 import { CORNERS, boardCorners, cornerGlyph, setBoardCorners } from '../cards/corners.js';
@@ -33,7 +34,7 @@ function menuFrom(btn, entries, alignRight = true) {
   off.observe(ctxmenu, { attributes: true, attributeFilter: ['hidden'] });
 }
 
-const exportMenu = () => VIEW ? exportMenuBase().slice(0, 4) : isPersonal() ? exportMenuBase() : exportMenuBase().slice(0, -1);
+const exportMenu = () => VIEW ? exportMenuBase().slice(0, 4) : isHome() ? exportMenuBase() : exportMenuBase().slice(0, -1);
 const exportMenuBase = () => [
   { label: 'Image (PNG)', icon: 'png', act: exportPNG },
   { label: 'Markdown', icon: 'text', act: () => downloadText(fileSafe(S.boards[cur].title) + '.md', boardToMd(cur), 'text/markdown') },
@@ -78,7 +79,8 @@ const moreMenu = () => [
   { label: 'Web clipper…', icon: 'bookmark', act: clipperDialog },
   { label: 'Keyboard shortcuts', icon: 'keyboard', kbd: '?', act: showHelp },
   ...(!RO && hasStyles() ? [{ label: 'Reset styles for new elements', icon: 'undo', act: resetStyles }] : []),
-  ...(isPersonal() ? ['-', { label: 'Reset to demo content…', icon: 'reset', danger: true, act: async () => {
+  // only while nobody else can see these boards: it replaces all of them
+  ...(isHome() && Object.keys(ACC?.people || {}).length <= 1 ? ['-', { label: 'Reset to demo content…', icon: 'reset', danger: true, act: async () => {
     if (!await confirmDialog('Reset to demo content?', { body: 'All of your boards will be replaced with the demo content. Everything else will be removed.', ok: 'Reset', danger: true })) return;
     setS({ ...seed(), views: {} }); resetUndo(); setCur('home'); location.hash = '#/b/home'; save(); render();
   } }] : []),
@@ -90,7 +92,7 @@ const accountMenu = () => [
   { label: 'Account settings', icon: 'user', act: () => openAccountSettings() },
   ...(user?.admin ? [{ label: 'Admin…', icon: 'lock', act: openAdmin }] : []),
   '-',
-  { label: 'Sign out', icon: 'close', act: signOut },
+  { label: 'Sign out', icon: 'close', act: async () => { if (await confirmDialog('Sign out?', { body: 'You will need to sign in again on this device.', ok: 'Sign out' })) signOut(); } },
 ];
 
 export function paintAvatar() {

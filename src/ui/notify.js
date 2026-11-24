@@ -10,9 +10,8 @@ import { icon } from './icons.js';
 import { toast } from './toast.js';
 import { hue } from './presence.js';
 import { openBoard } from '../app/navigation.js';
-import { switchSpace } from '../features/spaces.js';
+import { showSpaces, switchSpace } from '../features/spaces.js';
 import { openThread } from '../features/comments.js';
-import { renderPanel, setPanel } from './drawer.js';
 
 const btn = $('#bellBtn'), el = $('#notifPanel');
 let items = [], unread = 0, latest = 0, off = [], loading = null, settings = false;
@@ -77,7 +76,7 @@ async function markRead(body) {
 async function go(n) {
   show(false);
   if (!n.read) { n.read = true; unread = Math.max(0, unread - 1); paint(); markRead({ ids: [n.id] }); }
-  if (n.kind === 'invite') { setPanel('spaces'); renderPanel(); return; }
+  if (n.kind === 'invite') return showSpaces(true);
   if (!n.space) return;
   if (n.space !== SPACE) await switchSpace(n.space, n.board);
   if (n.space !== SPACE) return;   // no access any more (switchSpace said so)

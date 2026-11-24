@@ -1,4 +1,4 @@
-import { $, esc } from '../core/util.js';
+import { $, $$, esc } from '../core/util.js';
 import { icon } from '../ui/icons.js';
 import { canvas, world } from '../core/dom.js';
 import { RO, sel, selLine, setSelLine } from '../core/store.js';
@@ -33,7 +33,7 @@ export function enterDraw() {
   canvas.classList.add('drawing');
   sel.clear(); setSelLine(null); refreshSel();
   buildDrawbar(); drawbar.hidden = false;
-  $('.tool[data-tool="draw"]')?.classList.add('active');
+  $$('.tool[data-tool="draw"]').forEach(b => b.classList.add('active'));
   drawTemp = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   drawTemp.id = 'drawTemp'; drawTemp.classList.add('bigsvg');
   world.appendChild(drawTemp);
@@ -67,7 +67,7 @@ export function exitDraw() {
   drawMode = false;
   canvas.classList.remove('drawing');
   drawbar.hidden = true;
-  $('.tool[data-tool="draw"]')?.classList.remove('active');
+  $$('.tool[data-tool="draw"]').forEach(b => b.classList.remove('active'));
   drawTemp?.remove(); drawTemp = null;
   if (!drawStrokes.length) return;
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity, pad = 0;

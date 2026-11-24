@@ -205,6 +205,7 @@ export const TYPES = {
     init: () => ({ title: '' }),
     html: it => `<div class="col-head"><div class="col-title" data-ph="Untitled column">${esc(it.data.title)}</div><span class="col-count"></span></div><div class="col-body"></div>`,
     mount(el, it) {
+      el.classList.toggle('col-row', it.data.dir === 'row');
       const body = $('.col-body', el), kids = childrenOf(it.id);
       for (const k of kids) body.appendChild(makeCard(k));
       if (!kids.length) body.innerHTML = '<div class="col-empty">Drag cards here</div>';
@@ -307,6 +308,17 @@ export function pickSwatch(el) {
   const inp = $('input', el);
   inp.style.pointerEvents = 'auto';
   inp.click();
+}
+/** Vertical (stacked) or horizontal (side-by-side) layout for a column's cards. */
+export function setColumnDir(ids, dir) {
+  const cs = [...ids].map(id => S.items[id]).filter(it => it?.type === 'column' && !it.locked);
+  if (!cs.length) return;
+  checkpoint();
+  for (const c of cs) {
+    if (dir === 'row') c.data.dir = 'row'; else delete c.data.dir;
+    els.get(c.id)?.classList.toggle('col-row', dir === 'row');
+  }
+  save(); renderLines();
 }
 // their colour isn't a card background (a text element's colour is its text colour)
 export const noBg = new Set(['board', 'shortcut', 'swatch', 'text', 'icon', 'group']);

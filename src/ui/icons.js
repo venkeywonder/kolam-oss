@@ -87,5 +87,6 @@ export const ICON = {
   picker: '<path d="M13.5 6.5l4 4"/><path d="M15.5 4.5l1.6-1.6a2 2 0 0 1 2.9 0l1.1 1.1a2 2 0 0 1 0 2.9l-1.6 1.6"/><path d="M12.5 7.5l4 4-8 8H4.5v-4z"/>',
   logo: '<rect x="3" y="3" width="8" height="8" rx="2"/><circle cx="17" cy="7" r="4"/><path d="M7 14l4 7H3z"/><path d="M17 13l4 4-4 4-4-4z"/>',
   group: '<path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M11 4h2M11 20h2M4 11v2M20 11v2"/>',
+  star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
 };
 export const icon = (n, s = 20) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ''}</svg>`;

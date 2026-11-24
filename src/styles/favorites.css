@@ -1,0 +1,70 @@
+/* ---------- favorites bar at the bottom of the board (ui/favorites.js), styled like the macOS Dock ---------- */
+#favBar{position:fixed;bottom:14px;left:calc(var(--side) + (100vw - var(--side)) / 2);transform:translateX(-50%);z-index:41;display:flex;align-items:flex-end;min-height:50px;padding:4px 8px;background:color-mix(in srgb,var(--menu) 68%,transparent);backdrop-filter:blur(18px) saturate(1.8);-webkit-backdrop-filter:blur(18px) saturate(1.8);border:1px solid color-mix(in srgb,#fff 25%,transparent);box-shadow:var(--shadow-pop),inset 0 1px 0 color-mix(in srgb,#fff 35%,transparent);border-radius:16px;max-width:calc(100vw - var(--side) - 240px);outline:2px dashed transparent;outline-offset:4px;transition:outline-color .2s,background .2s,scale .25s var(--spring)}
+:root[data-theme=dark] #favBar{border-color:color-mix(in srgb,#fff 10%,transparent);box-shadow:var(--shadow-pop),inset 0 1px 0 color-mix(in srgb,#fff 8%,transparent)}
+#favBar[hidden],#favZone[hidden]{display:none}
+.fav-items{display:flex;align-items:flex-end;gap:2px}
+#favBar .tool{width:44px;padding:5px 0 4px;cursor:grab;transform-origin:bottom center;transform:scale(var(--mag,1));margin:0 calc((var(--mag,1) - 1) * 8px);transition:transform .15s var(--ease),margin .15s var(--ease)}
+#favBar .tool:active{cursor:grabbing}
+#favBar .tile-wrap{width:34px;height:34px}
+#favBar .tile{width:30px;height:30px}
+.fav-slot{display:block;flex:none;width:44px;height:40px;border-radius:9px;border:1.5px dashed var(--accent);background:var(--accent-soft);box-sizing:border-box}
+.fav-empty{display:none;align-items:center;gap:6px;padding:0 14px;color:var(--muted);font-size:12px;white-space:nowrap}
+#favBar.empty .fav-empty{display:flex}
+#favBar.empty .fav-items:has(.fav-slot)~.fav-empty{display:none}
+/* the label hides under the tile and reappears as a dock-style tooltip above the hovered icon */
+#favBar .tool-name{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%) translateY(4px);padding:4px 10px;border-radius:7px;background:var(--float);color:#fff;font-size:11px;font-weight:600;line-height:1;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s,transform .12s;box-shadow:var(--shadow-card);z-index:6}
+#favBar .tool:hover .tool-name,#favBar .tool:focus-visible .tool-name{opacity:1;transform:translateX(-50%) translateY(0)}
+/* the active tool (draw mode) gets a running-app dot, like the Dock */
+#favBar .tool.active::after{content:"";position:absolute;left:50%;bottom:-1px;width:4px;height:4px;border-radius:50%;background:var(--accent);transform:translateX(-50%)}
+/* a little bounce on click */
+#favBar .tool.fav-bounce .tile-wrap{animation:favBounce .32s cubic-bezier(.34,1.56,.64,1)}
+@keyframes favBounce{30%{transform:translateY(-10px) scale(1.12)}60%{transform:translateY(1px) scale(.95)}100%{transform:translateY(0) scale(1)}}
+/* while dragging, rects must stay true: no magnification transform or margin */
+#favBar.dragging .tool{transform:none!important;margin:0!important;transition:none!important}
+/* while a tool is dragged: the bar invites it, and lights up under it */
+#favBar.dragging.from-tools{outline-color:color-mix(in srgb,var(--accent) 45%,transparent);animation:favBreathe 1.4s ease-in-out infinite}
+#favBar.drop-on{outline-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--menu));scale:1.05;animation:none}
+#favBar.drop-on.full{outline-color:var(--danger);background:color-mix(in srgb,var(--danger) 7%,var(--menu))}
+@keyframes favBreathe{50%{outline-offset:7px}}
+.fav-drop{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:99px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none;opacity:0;translate:0 6px;transition:opacity .15s,translate .2s var(--spring)}
+#favBar.drop-on.from-tools:not(.full) .fav-drop{opacity:1;translate:0 0}
+.fav-drop svg{fill:currentColor}
+/* a tool that's already a favorite says hello when it's dragged over the bar again */
+#favBar .tool.hey .tile-wrap{animation:favHey .5s ease-in-out}
+@keyframes favHey{20%{transform:rotate(-12deg) scale(1.1)}45%{transform:rotate(10deg) scale(1.1)}70%{transform:rotate(-5deg)}}
+/* the remove zone above the bar, while a favorite is dragged */
+#favZone{position:fixed;bottom:80px;left:calc(var(--side) + (100vw - var(--side)) / 2);transform:translateX(-50%);z-index:41;display:flex;align-items:center;justify-content:center;gap:8px;width:240px;height:54px;box-sizing:border-box;border-radius:14px;border:2px dashed color-mix(in srgb,var(--danger) 60%,transparent);background:color-mix(in srgb,var(--danger) 8%,var(--menu));color:var(--danger);font-size:13px;font-weight:600;pointer-events:none;opacity:0;scale:.85;translate:0 10px;transition:opacity .18s,scale .28s var(--spring),translate .28s var(--spring),background .15s,color .15s}
+#favZone.show{opacity:1;scale:1;translate:0 0}
+#favZone.hot{background:var(--danger);border-color:var(--danger);color:#fff;scale:1.08}
+#favZone svg{transition:rotate .2s var(--spring)}
+#favZone.hot svg{rotate:-14deg}
+/* the dragged ghost over the bar (joining) or over the remove zone (about to go); a favorite being dragged stays
+   in its place, faded, until it's dropped */
+.tool-ghost.adding .tg-in{box-shadow:var(--shadow-lift),0 0 0 2px var(--accent)}
+.tool-ghost.removing .tg-in{opacity:.75;box-shadow:var(--shadow-lift),0 0 0 2px var(--danger)}
+#favBar .tool.lifted{opacity:.3}
+.fav-particle{position:fixed;z-index:210;pointer-events:none;border-radius:50%;will-change:transform,opacity}
+.fav-particle.spark{border-radius:2px}
+.fav-particle.puff{background:radial-gradient(circle,color-mix(in srgb,var(--muted) 85%,transparent) 0,color-mix(in srgb,var(--muted) 50%,transparent) 45%,transparent 72%)}
+/* the first-time hint above the bar */
+.fav-hint{position:absolute;left:50%;bottom:calc(100% + 14px);transform:translateX(-50%);width:310px;display:flex;align-items:center;gap:12px;padding:12px 34px 12px 12px;box-sizing:border-box;background:var(--menu);border-radius:12px;box-shadow:var(--shadow-pop);animation:favHintIn .45s var(--spring) .4s backwards,favBob 2.6s ease-in-out 1s infinite}
+.fav-hint::after{content:"";position:absolute;left:50%;bottom:-6px;width:12px;height:12px;background:var(--menu);transform:translateX(-50%) rotate(45deg);border-radius:0 0 3px 0}
+.fav-hint p{margin:0;font-size:12px;line-height:1.45;color:var(--ink-2,var(--muted))}
+.fav-hint b{display:block;font-size:13px;color:var(--ink);margin-bottom:2px}
+.fh-x{position:absolute;top:6px;right:6px;width:24px;height:24px;border:0;border-radius:6px;background:none;color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.fh-x:hover{background:var(--hover);color:var(--ink)}
+#favBar.dragging .fav-hint{opacity:0;pointer-events:none}
+@keyframes favHintIn{from{opacity:0;scale:.8;translate:0 10px}}
+@keyframes favBob{50%{translate:0 -4px}}
+.fh-demo{position:relative;flex:none;width:64px;height:44px;border-radius:9px;background:var(--field)}
+.fh-slot{position:absolute;right:6px;bottom:6px;width:22px;height:22px;border-radius:6px;border:1.5px dashed var(--accent);box-sizing:border-box;animation:favSlot 2.4s ease-in-out infinite}
+.fh-tile{position:absolute;left:4px;top:3px;width:22px;height:22px;z-index:1;animation:favDemo 2.4s cubic-bezier(.5,0,.3,1) infinite}
+.fh-tile .tile{width:22px;height:22px}
+@keyframes favDemo{0%,12%{translate:0 0;rotate:0deg;scale:1;opacity:1}45%{translate:18px -2px;rotate:-10deg;scale:1.1}68%,88%{translate:33px 16px;rotate:0deg;scale:1;opacity:1}100%{translate:33px 16px;opacity:0}}
+@keyframes favSlot{0%,60%{scale:1;background:transparent}70%{scale:1.25;background:var(--accent-soft)}85%,100%{scale:1;background:var(--accent-soft)}}
+/* toasts sit above the bar */
+body.has-favbar #toast{bottom:80px}
+.viewonly #favBar,.viewonly #favZone{display:none!important}
+@media (max-width:760px){#favBar{max-width:calc(100vw - var(--side) - 24px);overflow-x:auto;scrollbar-width:none}.fav-hint{display:none}}
+@media (prefers-reduced-motion:reduce){#favBar,#favZone,.fav-hint,.fh-tile,.fh-slot,#favBar .tool,#favBar .tool.hey .tile-wrap,#favBar .tool.fav-bounce .tile-wrap{animation:none!important;transition:none!important}}
+@media print{#favBar,#favZone{display:none!important}}

@@ -237,7 +237,7 @@ final class OAuth
             .oa-row .auth-btn{flex:1}
             .auth-btn.oa-no{background:var(--hover);color:var(--ink)}
             </style>
-            </head><body><div id="auth"><div class="auth-card">
+            </head><body class="auth-mode"><div id="auth"><div class="auth-card">
             <div class="auth-logo"><img class="emblem emblem-light" src="$base/src/assets/emblem-light.svg" width="40" height="40" alt=""><img class="emblem emblem-dark" src="$base/src/assets/emblem-dark.svg" width="40" height="40" alt=""></div>
             $body
             </div></div></body></html>

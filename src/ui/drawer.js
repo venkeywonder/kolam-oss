@@ -2,7 +2,7 @@ import { $, $$, esc, uid, track } from '../core/util.js';
 import { icon } from './icons.js';
 import { pal } from '../core/palette.js';
 import { canvas } from '../core/dom.js';
-import { ROOT, S, VIEW, checkpoint, cur, els, isPersonal, save, user } from '../core/store.js';
+import { ROOT, S, VIEW, checkpoint, cur, els, flush, isHome, markRemote, save, user } from '../core/store.js';
 import { api } from '../core/api.js';
 import { V, toWorld } from '../canvas/viewport.js';
 import { childrenOf, itemsOf, maxZ } from '../core/model.js';
@@ -18,7 +18,7 @@ import { plain } from './search.js';
 import { toast } from './toast.js';
 import { confirmDialog } from './modal.js';
 import { isDark } from './theme.js';
-import { confirmMove, refreshContexts, renderSpacesPanel, switchSpace } from '../features/spaces.js';
+import { confirmMove, refreshContexts, switchSpace } from '../features/spaces.js';
 import { toggle as toggleComments } from '../features/comments.js';
 
 /* ================= Unsorted & Trash drawer ================= */
@@ -38,12 +38,12 @@ export function updateBadges() {
 export function renderPanel() {
   $$('.tool[data-panel]').forEach(b => b.classList.toggle('active', b.dataset.panel === panel));
   $('#unsortedPill')?.classList.toggle('active', panel === 'unsorted');
-  if (panel === 'unsorted' && !isPersonal()) panel = null;   // the inbox belongs to your own boards
+  if (panel === 'unsorted' && !isHome()) panel = null;   // the inbox lives in your home workspace
   if (!panel || VIEW) { drawer.hidden = true; return; }
   drawer.hidden = false;
   toggleComments(false);
   dispatchEvent(new CustomEvent('nk:panel', { detail: 'drawer' }));
-  if (panel === 'unsorted') renderUnsorted(); else if (panel === 'spaces') renderSpacesPanel(); else renderTrash();
+  if (panel === 'unsorted') renderUnsorted(); else renderTrash();
   updateBadges();
 }
 export function miniCard(it) {
@@ -229,7 +229,7 @@ function trashMeta(t) {
 export function renderTrash() {
   const tr = S.trash || [];
   drawer.innerHTML = `<div class="dr-head"><b>Trash</b><span class="dr-sub">${tr.length} item${tr.length === 1 ? '' : 's'}</span>${tr.length ? '<button class="btn ghost" data-empty style="height:28px;font-size:12px">Empty</button>' : ''}<button class="icon-btn" data-x title="Close">${icon('close', 16)}</button></div>` +
-    `<div class="dr-list">${tr.length ? tr.map(t => `<div class="tr-row"><b title="${esc(t.label)}">${esc(t.label)}</b><small>${esc(trashMeta(t))}</small><button class="btn" data-restore="${t.id}">Restore</button><button class="btn ghost" data-purge="${t.id}">Delete forever</button></div>`).join('') : `<div class="dr-empty">${isPersonal() ? 'Deleted cards and boards land here, so you can bring them back.' : 'Cards and boards deleted here land in this Trash. Everyone who can edit these boards can bring them back.'}</div>`}</div>`;
+    `<div class="dr-list">${tr.length ? tr.map(t => `<div class="tr-row"><b title="${esc(t.label)}">${esc(t.label)}</b><small>${esc(trashMeta(t))}</small><button class="btn" data-restore="${t.id}">Restore</button><button class="btn ghost" data-purge="${t.id}">Delete forever</button></div>`).join('') : `<div class="dr-empty">${isHome() ? 'Deleted cards and boards land here, so you can bring them back.' : 'Cards and boards deleted here land in this Trash. Everyone who can edit these boards can bring them back.'}</div>`}</div>`;
   $('[data-x]', drawer).onclick = () => togglePanel('trash');
   drawer.onclick = async e => {
     const r = e.target.closest('[data-restore]'); if (r) return restoreTrash(r.dataset.restore);
@@ -240,12 +240,38 @@ export function renderTrash() {
         if (!await confirmDialog(`Delete ${t.label} for good?`, { body: 'All of its boards will be deleted. This can’t be undone.', ok: 'Delete', danger: true })) return;
         await purgeWorkspace(t); return renderPanel();
       }
-      checkpoint(); S.trash = S.trash.filter(x => x.id !== t.id); save(); return renderPanel();
+      purge([t]); return renderPanel();
     }
-    if (e.target.closest('[data-empty]') && await confirmDialog('Empty the Trash?', { body: 'Everything in the Trash will be deleted for good. This can’t be undone.', ok: 'Empty Trash', danger: true })) {
-      for (const t of S.trash.filter(x => x.type === 'workspace')) await purgeWorkspace(t);
-      checkpoint(); S.trash = S.trash.filter(x => x.type === 'workspace'); save(); renderPanel();
-    }
+    if (e.target.closest('[data-empty]')) emptyTrash();
   };
+}
+/**
+ * Deletes trash entries for good: the server then deletes the files only they used, so the storage is freed. That
+ * can't be undone, so undo leaves them and their cards gone (as if someone else had deleted them).
+ */
+function purge(list) {
+  for (const t of list) {
+    markRemote('trash:' + t.id, t, null);
+    for (const [k, rs] of [['item', t.items], ['board', t.boards], ['line', t.lines]]) for (const r of rs || []) markRemote(k + ':' + r.id, r, null);
+  }
+  const ids = new Set(list.map(t => t.id));
+  S.trash = S.trash.filter(x => !ids.has(x.id));
+  return flush();
+}
+/** Asks, then deletes everything in this space's Trash for good. Resolves true once it's emptied on the server. */
+export async function emptyTrash() {
+  if (!S.trash.length || !await confirmDialog('Empty the Trash?', { body: 'Everything in the Trash will be deleted for good, and its files stop counting toward your storage. This can’t be undone.', ok: 'Empty Trash', danger: true })) return false;
+  for (const t of S.trash.filter(x => x.type === 'workspace')) await purgeWorkspace(t);
+  const p = purge(S.trash.filter(x => x.type !== 'workspace'));
+  renderPanel();
+  await p;
+  return true;
+}
+/** Uploaded files only cards in the Trash use (not a card on a board). */
+export function trashAssets() {
+  const live = new Set(Object.values(S.items).map(it => it.data?.asset).filter(Boolean));
+  const ids = new Set();
+  for (const t of S.trash) for (const it of t.items || []) if (it.data?.asset && !live.has(it.data.asset)) ids.add(it.data.asset);
+  return [...ids];
 }
 export const setPanel = v => (panel = v);

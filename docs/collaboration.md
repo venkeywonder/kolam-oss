@@ -26,7 +26,8 @@ Workspaces, sharing, links, comments, notifications, version history, and connec
 - **Invitations** last 7 days, are for one email address, and let that address create an account even when
   `ALLOW_SIGNUP=false`. They're emailed when SMTP is set up in `.env`; the link can always be copied from the dialog.
   Until SMTP is set up, each email is written to `storage/mail/` instead (one `.eml` file per message, kept 30 days),
-  as a placeholder outbox you can open in any mail app. Pending invitations also show in the Spaces panel, and
+  as a placeholder outbox you can open in any mail app. Pending invitations also show in the spaces dropdown (the
+  button next to the logo), and
   people who already have an account get an in-app notification.
 - Cards deleted on a shared board go to that board's Trash, which every editor sees, with who deleted them.
   A deleted workspace waits 30 days in its owner's Trash (`server/bin/kolam cleanup` removes it after that).
@@ -48,7 +49,7 @@ Workspaces, sharing, links, comments, notifications, version history, and connec
   `server/bin/kolam cleanup`.
 - **Activity and versions.** The clock button in the board bar shows the board's activity: who added, edited, moved,
   recoloured or deleted which card, renamed the board, or commented, newest first. One person's changes to a card
-  within 2 minutes count as one entry ("3 changes"). Click an entry (or right-click a card → *Version history*) to see
+  within 2 minutes count as one entry ("3 changes"). Click an entry (or Ctrl/Alt + right-click a card → *Version history*) to see
   that card's versions and preview any of them; people who can edit can restore one. Restoring brings back the card's
   content, colour and size and leaves it where it is now; a deleted card comes back on its board (and leaves the
   Trash). A restore is a normal change, so undo takes it back. Undo (⌘Z) only ever reverts your own changes.
@@ -67,8 +68,19 @@ disconnects it.
   Kolam is its own OAuth 2.1 server (authorization code + PKCE, dynamic client registration, discovered through the
   `WWW-Authenticate` header and `/api/.well-known/`). An access key from the panel is the fallback for tools that
   can't sign in through a browser. Every connection is listed in the panel and can be disconnected.
-- **Board tools:** `list_boards`, `get_board`, `search`, `create_cards`, `update_card` (incl. single tasks with due dates, column order,
-  lock, collapse), `duplicate_cards`, `delete_cards` (to Trash), `list_trash`, `restore_from_trash`, `connect_cards`,
-  `update_connection`, `delete_connections`, `comment` (comment on any card, resolve threads), `update_board` (title,
-  background, corners, icon, parent), limited to the boards the signed-in person can reach, with their role. Writes go
-  through the same change log as the browser, so open tabs pick them up within 3 seconds.
+- **Board tools:** `list_boards`, `get_board`, `search`, `create_cards` (every card type incl. icons, group boxes drawn
+  around cards, styled text, horizontal columns, and images fetched from an https URL into the person's storage),
+  `update_card` (incl. single tasks with due dates, column order, lock, collapse), `duplicate_cards`, `delete_cards`
+  (to Trash), `list_trash`, `restore_from_trash`, `connect_cards` / `update_connection` (label, colour, route, dash,
+  width, arrowheads), `delete_connections`, `comment` (comment on any card, resolve threads), `update_board` (title,
+  background, corners, emoji or icon, parent), `list_icons`, `arrange_cards` (grid, row, column, tree; align,
+  distribute), `list_templates`, `create_board_from_template`, `board_activity`, `card_versions`, `restore_version`,
+  `current_board` (the board the person has open, from presence), limited to the boards the signed-in person can reach,
+  with their role. Writes go through the same change log as the browser, so open tabs pick them up within 3 seconds.
+- **People tools:** `create_workspace`, `list_members`, `invite` (sends the same email as the app), `share_link`
+  (create, list, remove), with the app's role checks.
+- **Prompts:** ready-made requests in the AI app's menu: summarise a board, notes to to-dos, plan a project, draw a
+  diagram, tidy a board, weekly review, brainstorm.
+- **Code:** `server/src/Mcp.php` (JSON-RPC, tool modules, prompts); tools in `BoardTools`, `LayoutTools`,
+  `TemplateTools`, `HistoryTools`, `PeopleTools`; prompts in `McpPrompts`. Board templates live in `src/templates.json`,
+  shared by the browser and `TemplateTools`.

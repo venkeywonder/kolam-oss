@@ -53,10 +53,8 @@ final class Sync
     public static function accessInfo(array $u, array $space, array $boards): array
     {
         $spaceRole = Access::spaceRole($u['id'], $space);
-        $name = $space['kind'] === 'workspace' ? $space['name']
-            : ($space['owner_id'] === $u['id'] ? 'My boards' : (Access::names([$space['owner_id']])[$space['owner_id']]['name'] ?? 'Someone') . '’s boards');
         $info = [
-            'space' => ['id' => $space['id'], 'kind' => $space['kind'], 'name' => $name],
+            'space' => ['id' => $space['id'], 'kind' => $space['kind'], 'name' => $space['name']],
             'spaceRole' => $spaceRole,
             'boards' => (object) $boards,
             'roots' => Access::roots($boards, $space['id']),
@@ -85,7 +83,8 @@ final class Sync
         $y = is_array($in['y'] ?? null) ? $in['y'] : [];
         // boards first, so cards can land on a board created in the same push
         usort($ops, fn($a, $b) => ($a['k'] !== 'board') <=> ($b['k'] !== 'board'));
-        $out = Db::tx(function () use ($u, $spaceId, $ops, $y) {
+        $dropped = [];   // files of trash entries deleted for good in this push: freed once it's committed
+        $out = Db::tx(function () use ($u, $spaceId, $ops, $y, &$dropped) {
             $space = Access::space($spaceId);
             Db::q('UPDATE spaces SET rev = rev + 1 WHERE id = ?', [$spaceId]);   // also serialises pushes to this space
             $rev = (int) Db::one('SELECT rev FROM spaces WHERE id = ?', [$spaceId])['rev'];
@@ -150,6 +149,7 @@ final class Sync
                     if ($k === 'item' && !isset($y[$id])) YText::plainWrites($spaceId, $id, $od, $d, $u['id']);
                 }
                 self::put($spaceId, $rev, $k, $id, $d, $parent, $u['id'], isset($old["$k:$id"]));
+                if ($k === 'trash' && $del && is_array($od)) array_push($dropped, ...Assets::inTrashEntry($od));
                 if ($k === 'item' && !$del && (!$o || $o['parent'] !== $parent)) $arrived[] = $id;
                 if ($k === 'item' || $k === 'board') $hist[] = [$k, $id, $parent, is_array($od) ? $od : null, $del ? null : $d, isset($old["$k:$id"])];
             }
@@ -165,7 +165,10 @@ final class Sync
             if ($y) $res['y'] = (object) YText::exchange($u, $spaceId, $y, $vis);
             return $res;
         });
-        if (!Db::pdo()->inTransaction()) Realtime::nudge();   // open browsers pull right away
+        if (!Db::pdo()->inTransaction()) {
+            if ($dropped) Assets::release($dropped);
+            Realtime::nudge();   // open browsers pull right away
+        }
         return $out;
     }
 
@@ -295,6 +298,6 @@ final class Sync
         foreach (($st['lines'] ?? []) as $id => $l) $ops[] = ['k' => 'line', 'id' => (string) $id, 'd' => $l];
         foreach (($st['trash'] ?? []) as $t) if (isset($t['id'])) $ops[] = ['k' => 'trash', 'id' => (string) $t['id'], 'd' => $t];
         $u = Db::one('SELECT id, name FROM users WHERE id = ?', [$userId]);
-        foreach (array_chunk($ops, 4000) as $chunk) self::push($u, Spaces::personal($userId)['id'], ['ops' => $chunk]);
+        foreach (array_chunk($ops, 4000) as $chunk) self::push($u, Spaces::home($userId)['id'], ['ops' => $chunk]);
     }
 }

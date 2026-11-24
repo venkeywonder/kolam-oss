@@ -14,6 +14,7 @@
   --serif:'Source Serif 4','Tiempos Text',Georgia,'Times New Roman',serif;
   --top:44px; --bar:46px; --head:calc(var(--top) + var(--bar)); --side:64px;
   --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.56,.64,1);
+  --chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235f6672' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   color-scheme:light;
 }
 :root[data-theme=dark]{
@@ -26,5 +27,6 @@
   --shadow-hover:0 4px 12px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.07);
   --shadow-lift:0 18px 40px -6px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08);
   --shadow-pop:0 14px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07);
+  --chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b9bec7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   color-scheme:dark;
 }

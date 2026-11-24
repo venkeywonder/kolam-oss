@@ -6,9 +6,9 @@ namespace Kolam;
 /** The board and card operations exposed to AI assistants as MCP tools. */
 final class BoardTools
 {
-    private const UNSORTED = '__unsorted';
+    public const UNSORTED = '__unsorted';
     private const COLORS = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'dark'];
-    private const CREATABLE = ['text', 'note', 'todo', 'link', 'column', 'board', 'shortcut', 'table', 'doc', 'comment', 'swatch'];
+    private const CREATABLE = ['text', 'note', 'todo', 'link', 'column', 'board', 'shortcut', 'table', 'doc', 'comment', 'swatch', 'icon', 'group', 'image'];
     // text has no width of its own: it fits its words until resized
     private const WIDTH = ['text' => null, 'note' => 260, 'todo' => 260, 'link' => 280, 'column' => 280, 'board' => 150, 'table' => 380,
                            'doc' => 260, 'comment' => 260, 'swatch' => 140, 'image' => 300, 'file' => 260, 'sketch' => 320, 'drawing' => 200, 'shortcut' => 150,
@@ -18,16 +18,27 @@ final class BoardTools
                            'sketch' => 'Sketch', 'drawing' => 'Drawing', 'shortcut' => 'Shortcut', 'icon' => 'Icon', 'group' => 'Group'];
     private const BACKGROUNDS = ['dots', 'grid', 'plain'];
     private const CORNERS = ['sharp', 'curved', 'rounded'];
+    private const FONTS = ['sans', 'serif', 'mono', 'hand'];
+    private const ROUTES = ['straight', 'curved', 'elbow'];
+    private const HEADS = ['triangle', 'open', 'dot', 'diamond'];
+    private const DASHES = ['solid', 'dashed', 'dotted'];
+    private const WIDTHS = [1, 2, 3, 5];
+    private const COLUMN_DIRS = ['vertical', 'horizontal'];
+    // images fetched from a URL (and uploads) accepted inline; matches Assets::INLINE's image subset
+    private const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/bmp', 'image/svg+xml'];
 
     /** Work that has to wait until the card changes are saved (comments need their card to exist). */
     private static array $after = [];
+    /** Logo/Lucide icon catalogue, loaded once per process from the files the browser ships (src/vendor). */
+    private static ?array $iconCatalog = null;
 
     public const INSTRUCTIONS = <<<TXT
         Kolam is a visual workspace: boards hold cards placed on an infinite canvas (x/y in pixels, x grows right, y grows down).
-        Card types: note (rich text), todo (checklist), link, column (a vertical list that holds other cards), board (a card that opens a
-        sub-board), shortcut (a card that jumps to any board in the space, however deep; deleting or moving it never touches that board),
-        table, doc (long document), comment, swatch (colour), plus image, file, sketch, drawing, icon (a logo with a label) and group
-        (a labelled box drawn around cards, e.g. a VPC in an architecture diagram) which you can read but not create.
+        Card types: note (rich text), todo (checklist), link, column (a vertical list that holds other cards, vertical or horizontal),
+        board (a card that opens a sub-board), shortcut (a card that jumps to any board in the space, however deep; deleting or moving it
+        never touches that board), table, doc (long document), comment, swatch (colour), image (from an uploaded picture or a public
+        https URL), file, sketch, drawing, icon (a logo or plain icon with a label under it; call list_icons for valid refs) and group
+        (a labelled box drawn around cards, e.g. a VPC in an architecture diagram; around_card_ids draws it around given cards).
         Boards live in a space: your own space has "home" as its top board, with "__unsorted" as the inbox drawer for cards not on a board
         yet. Other spaces (a team workspace, or a board someone shared with you) have their own top board instead of "home"; call
         list_boards to see them, then pass their id as "space" to every tool call that should act there. Without "space" you see your own boards.
@@ -35,6 +46,8 @@ final class BoardTools
         Leave x/y out to let Kolam place new cards in free space beside the existing ones. Use refs to fill a column you create in the same call.
         Todo tasks have ids and an optional due date (YYYY-MM-DD). To tick, edit, date, remove or reorder some tasks, use update_card's
         task_changes / task_order rather than resending the whole list. Comments (on any card) go through comment; they are posted as the person you work for.
+        A text card can be styled: font, size, bold/italic/underline, ink (a custom hex text colour) and fill (a palette colour or hex background);
+        color sets its text colour from the palette instead. Connections (connect_cards, update_connection) take route, dash, width, head and arrow_start too.
         Locked cards can't be changed until they are unlocked (update_card locked=false). Deleted cards wait in the Trash (list_trash, restore_from_trash).
         TXT;
 
@@ -42,13 +55,27 @@ final class BoardTools
     public static function definitions(): array
     {
         $space = ['type' => 'string', 'description' => 'Space id from list_boards; omit for your own boards'];
-        $color = ['type' => 'string', 'enum' => array_merge(self::COLORS, ['none']), 'description' => 'Card colour; "none" clears it'];
+        $color = ['type' => 'string', 'enum' => array_merge(self::COLORS, ['none']), 'description' => 'Card colour (a text/icon/group card’s ink instead of a background); "none" clears it'];
         $align = ['type' => 'string', 'enum' => Styles::ALIGNS, 'description' => 'Text alignment of a note, todo, column, comment, image caption, table or doc (columns are centred by default, the rest left)'];
         $tasks = ['type' => 'array', 'items' => ['anyOf' => [['type' => 'string'], ['type' => 'object', 'properties' => [
             'id' => ['type' => 'string', 'description' => 'Id of an existing task, to keep it'],
             'text' => ['type' => 'string'], 'done' => ['type' => 'boolean'],
             'due' => ['type' => 'string', 'description' => 'Due date YYYY-MM-DD; "" clears it']], 'required' => ['text']]]]];
         $position = ['type' => 'integer', 'minimum' => 0, 'description' => 'Place inside the column, 0 = top (default: the end)'];
+        $textStyle = [
+            'font' => ['type' => 'string', 'enum' => self::FONTS, 'description' => 'Font of a text card'],
+            'size' => ['type' => 'integer', 'minimum' => 8, 'maximum' => 200, 'description' => 'Text size in pixels'],
+            'bold' => ['type' => 'boolean'], 'italic' => ['type' => 'boolean'], 'underline' => ['type' => 'boolean'],
+            'ink' => ['type' => 'string', 'description' => 'Custom hex text colour like #e76f51; overrides color; "" restores automatic'],
+            'fill' => ['type' => 'string', 'description' => 'Background fill behind the text: a colour name (see color) or hex like #fff3b8; "none" clears it'],
+        ];
+        $lineStyle = [
+            'route' => ['type' => 'string', 'enum' => self::ROUTES, 'description' => 'Line path'],
+            'dash' => ['type' => 'string', 'enum' => self::DASHES],
+            'width' => ['type' => 'integer', 'enum' => self::WIDTHS, 'description' => 'Line thickness in pixels'],
+            'head' => ['type' => 'string', 'enum' => self::HEADS, 'description' => 'Shape of the arrowhead(s)'],
+            'arrow_start' => ['type' => 'boolean', 'description' => 'Arrow head at the start too'],
+        ];
         $card = [
             'type' => 'object',
             'properties' => [
@@ -56,18 +83,25 @@ final class BoardTools
                 'ref' => ['type' => 'string', 'description' => 'Optional name so later cards in this call can use it as column_id'],
                 'title' => ['type' => 'string', 'description' => 'Title of a todo, column, doc, link or board'],
                 'target_board_id' => ['type' => 'string', 'description' => 'Board a shortcut card opens (an id from list_boards)'],
-                'text' => ['type' => 'string', 'description' => 'Markdown body of a note or doc, or the text of a comment'],
+                'text' => ['type' => 'string', 'description' => 'Markdown body of a note, doc or image caption, or the text of a comment'],
                 'tasks' => $tasks + ['description' => 'Todo items'],
-                'url' => ['type' => 'string', 'description' => 'Link URL (a preview is fetched automatically)'],
+                'url' => ['type' => 'string', 'description' => 'Link URL (a preview is fetched automatically), or a public https image URL for an image card (the picture is downloaded and stored)'],
                 'rows' => ['type' => 'array', 'items' => ['type' => 'array', 'items' => ['type' => 'string']],
                            'description' => 'Table cells, first row is the header. Cells may hold formulas like =SUM(B2:B5)'],
                 'hex' => ['type' => 'string', 'description' => 'Swatch colour like #e76f51'],
                 'color' => $color, 'align' => $align,
+                'icon_ref' => ['type' => 'string', 'description' => 'Icon or logo ref for an icon card, or a group’s icon (call list_icons for valid refs)'],
+                'label' => ['type' => 'string', 'description' => 'Label under an icon card'],
+                'solid' => ['type' => 'boolean', 'description' => 'Solid border for a group box (default: dashed)'],
+                'around_card_ids' => ['type' => 'array', 'items' => ['type' => 'string'], 'minItems' => 1,
+                                       'description' => 'Draw a group box around these existing cards (on the same board), instead of x/y/w/h'],
+                'direction' => ['type' => 'string', 'enum' => self::COLUMN_DIRS, 'description' => 'Layout of a column’s cards (default: vertical)'],
                 'column_id' => ['type' => 'string', 'description' => 'Put the card inside this column (an id or a ref from this call); x/y are then ignored'],
                 'position' => $position,
                 'x' => ['type' => 'number'], 'y' => ['type' => 'number'],
                 'w' => ['type' => 'number', 'description' => 'Width in pixels'],
-            ],
+                'h' => ['type' => 'number', 'description' => 'Height in pixels (group only; ignored with around_card_ids)'],
+            ] + $textStyle,
             'required' => ['type'],
         ];
         $obj = fn(array $props, array $req = []) => ['type' => 'object', 'properties' => (object) (['space' => $space] + $props)] + ($req ? ['required' => $req] : []);
@@ -83,6 +117,11 @@ final class BoardTools
             ['name' => 'search', 'title' => 'Search cards',
              'description' => 'Find cards and boards whose text contains the query (case-insensitive).',
              'inputSchema' => $obj(['query' => ['type' => 'string'], 'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 100]], ['query']),
+             'annotations' => ['readOnlyHint' => true]],
+            ['name' => 'list_icons', 'title' => 'List icon refs',
+             'description' => 'Logo and plain icon refs usable as icon_ref on an icon card or a group: AWS/brand/dev logos (e.g. "aws/amazon-ec2", "brand/stripe") '
+                . 'and plain Lucide icons ("lucide/<name>"). Filter with query; without it you get a first page of the catalogue.',
+             'inputSchema' => $obj(['query' => ['type' => 'string'], 'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 200]]),
              'annotations' => ['readOnlyHint' => true]],
             ['name' => 'create_cards', 'title' => 'Create cards',
              'description' => 'Add one or more cards to a board. Creating a card of type "board" also creates the sub-board it opens (its id is returned as board_id). '
@@ -103,11 +142,15 @@ final class BoardTools
                  'task_order' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Task ids in the new order; tasks left out keep their order after these'],
                  'url' => ['type' => 'string'],
                  'rows' => $card['properties']['rows'], 'hex' => ['type' => 'string'], 'color' => $color, 'align' => $align,
+                 'icon_ref' => ['type' => 'string', 'description' => 'Change the icon or logo of an icon card, or set/change a group’s icon; "" removes a group’s icon (call list_icons)'],
+                 'label' => ['type' => 'string', 'description' => 'Label under an icon card'],
+                 'solid' => ['type' => 'boolean', 'description' => 'Solid (true) or dashed (false) border for a group box'],
+                 'direction' => ['type' => 'string', 'enum' => self::COLUMN_DIRS, 'description' => 'Layout of a column’s cards'],
                  'x' => ['type' => 'number'], 'y' => ['type' => 'number'], 'w' => ['type' => 'number'], 'h' => ['type' => 'number'],
                  'column_id' => ['type' => 'string'], 'position' => $position, 'board_id' => ['type' => 'string'],
                  'locked' => ['type' => 'boolean', 'description' => 'Lock the card in place so it can’t be edited, moved or resized; false unlocks it'],
                  'collapsed' => ['type' => 'boolean', 'description' => 'Collapse or expand a column'],
-             ], ['card_id'])],
+             ] + $textStyle, ['card_id'])],
             ['name' => 'duplicate_cards', 'title' => 'Duplicate cards',
              'description' => 'Copy cards (with a column’s cards, a board card’s whole board, and the connections between them). Copies go beside the originals, or onto board_id.',
              'inputSchema' => $obj(['card_ids' => ['type' => 'array', 'items' => ['type' => 'string'], 'minItems' => 1, 'maxItems' => 100],
@@ -119,11 +162,12 @@ final class BoardTools
             ['name' => 'connect_cards', 'title' => 'Connect cards',
              'description' => 'Draw an arrow from one card to another on the same board.',
              'inputSchema' => $obj(['from_card_id' => ['type' => 'string'], 'to_card_id' => ['type' => 'string'], 'label' => ['type' => 'string'],
-                                    'arrow' => ['type' => 'boolean', 'description' => 'Arrow head at the end (default: the person’s usual line style)']], ['from_card_id', 'to_card_id'])],
+                                    'arrow' => ['type' => 'boolean', 'description' => 'Arrow head at the end (default: the person’s usual line style)'],
+                                    'color' => $color] + $lineStyle, ['from_card_id', 'to_card_id'])],
             ['name' => 'update_connection', 'title' => 'Update a connection',
-             'description' => 'Change a connection line’s label, arrow head or colour.',
+             'description' => 'Change a connection line’s label, colour, route, dash, width or arrow heads.',
              'inputSchema' => $obj(['connection_id' => ['type' => 'string'], 'label' => ['type' => 'string', 'description' => '"" removes the label'],
-                                    'arrow' => ['type' => 'boolean'], 'color' => $color], ['connection_id'])],
+                                    'arrow' => ['type' => 'boolean'], 'color' => $color] + $lineStyle, ['connection_id'])],
             ['name' => 'delete_connections', 'title' => 'Delete connections',
              'description' => 'Remove connection lines by id (ids come from get_board).',
              'inputSchema' => $obj(['connection_ids' => ['type' => 'array', 'items' => ['type' => 'string'], 'minItems' => 1]], ['connection_ids']),
@@ -139,6 +183,7 @@ final class BoardTools
                  'background' => ['type' => 'string', 'enum' => self::BACKGROUNDS],
                  'corners' => ['type' => 'string', 'enum' => self::CORNERS, 'description' => 'Corners of every card on this board'],
                  'icon' => ['type' => 'string', 'description' => 'One emoji shown on the board’s card; "" restores the default icon'],
+                 'icon_name' => ['type' => 'string', 'description' => 'A Lucide icon name instead of an emoji (call list_icons with a "lucide/" ref and drop the prefix); "" restores the default icon'],
                  'parent_board_id' => ['type' => 'string', 'description' => 'Move the board (its card) onto this board'],
              ], ['board_id'])],
             ['name' => 'list_trash', 'title' => 'List the Trash',
@@ -153,13 +198,13 @@ final class BoardTools
     /** Run a tool; returns data that is sent back to the model as JSON text. */
     public static function call(array $u, string $name, array $a): array
     {
-        $space = isset($a['space']) && is_string($a['space']) && $a['space'] !== '' ? $a['space'] : null;
-        $w = Workspace::load($u, $space);
+        $w = Workspace::load($u, self::spaceArg($a));
         self::$after = [];
         $r = match ($name) {
             'list_boards' => self::listBoards($w, $u),
             'get_board' => self::getBoard($w, self::boardArg($w, $a['board_id'] ?? self::defaultBoard($w))),
             'search' => self::search($w, (string) ($a['query'] ?? ''), (int) ($a['limit'] ?? 30)),
+            'list_icons' => self::listIcons((string) ($a['query'] ?? ''), (int) ($a['limit'] ?? 40)),
             'create_cards' => self::createCards($w, $u, self::editableBoard($w, $a['board_id'] ?? ''), $a['cards'] ?? null),
             'update_card' => self::updateCard($w, $u, $a),
             'duplicate_cards' => self::duplicateCards($w, $a),
@@ -173,14 +218,26 @@ final class BoardTools
             'restore_from_trash' => self::restoreTrash($w, (string) ($a['trash_id'] ?? '')),
             default => throw new ToolError("Unknown tool $name"),
         };
-        $w->commit();
-        foreach (self::$after as $f) $f();
-        self::$after = [];
+        self::save($w);
         return $r;
     }
 
+    /** Save a tool call's changes, then do what had to wait for them (comments on new cards). Other tool modules call this too. */
+    public static function save(Workspace $w): void
+    {
+        $w->commit();
+        foreach (self::$after as $f) $f();
+        self::$after = [];
+    }
+
+    /** The "space" argument every tool takes; null for the person's own boards. */
+    public static function spaceArg(array $a): ?string
+    {
+        return isset($a['space']) && is_string($a['space']) && $a['space'] !== '' ? $a['space'] : null;
+    }
+
     /** First board the person can see when "home" isn't visible to them (a shared board with its own top). */
-    private static function defaultBoard(Workspace $w): string
+    public static function defaultBoard(Workspace $w): string
     {
         if (isset($w->boards['home'])) return 'home';
         foreach ($w->boards as $id => $b) {
@@ -190,12 +247,12 @@ final class BoardTools
     }
 
     /** Fails with a model-friendly message when the person can only view this board. */
-    private static function requireEditor(Workspace $w, string $bid): void
+    public static function requireEditor(Workspace $w, string $bid): void
     {
         if (!Access::atLeast($w->roles[$bid] ?? null, 'editor')) throw new ToolError('You can only view this board');
     }
 
-    private static function editableBoard(Workspace $w, mixed $id): string
+    public static function editableBoard(Workspace $w, mixed $id): string
     {
         $bid = self::boardArg($w, $id);
         self::requireEditor($w, $bid);
@@ -233,10 +290,7 @@ final class BoardTools
             $best = null;
             foreach ($roles as $role) if ($best === null || Access::RANK[$role] > Access::RANK[$best]) $best = $role;
             if ($best === null) continue;
-            $name = $space['kind'] === 'personal'
-                ? (Access::names([$space['owner_id']])[$space['owner_id']]['name'] ?? 'Someone') . '’s boards'
-                : $space['name'];
-            $out[$sid] = ['space' => $sid, 'name' => $name, 'kind' => $space['kind'], 'role' => $best];
+            $out[$sid] = ['space' => $sid, 'name' => $space['name'], 'kind' => $space['kind'], 'role' => $best];
         }
         return array_values($out);
     }
@@ -250,7 +304,12 @@ final class BoardTools
         foreach ($w->lines as $l) {
             if (($l['board'] ?? null) !== $bid) continue;
             $conns[] = array_filter(['id' => $l['id'], 'from' => $l['a']['item'] ?? null, 'to' => $l['b']['item'] ?? null,
-                                     'label' => ($l['label'] ?? '') ?: null, 'arrow' => !empty($l['arrow']), 'color' => $l['color'] ?? null], fn($v) => $v !== null);
+                                     'label' => ($l['label'] ?? '') ?: null, 'arrow' => !empty($l['arrow']), 'color' => $l['color'] ?? null,
+                                     'arrow_start' => !empty($l['arrowStart']) ?: null,
+                                     'route' => isset($l['route']) && $l['route'] !== 'straight' ? $l['route'] : null,
+                                     'dash' => isset($l['dash']) && $l['dash'] !== 'solid' ? $l['dash'] : null,
+                                     'width' => isset($l['width']) && $l['width'] !== 2 ? $l['width'] : null,
+                                     'head' => isset($l['head']) && $l['head'] !== 'triangle' ? $l['head'] : null], fn($v) => $v !== null);
         }
         $b = $w->boards[$bid] ?? null;
         return [
@@ -262,7 +321,7 @@ final class BoardTools
         ];
     }
 
-    private static function describe(Workspace $w, array $i, bool $inColumn = false): array
+    public static function describe(Workspace $w, array $i, bool $inColumn = false): array
     {
         $d = $i['data'] ?? [];
         $o = ['id' => $i['id'], 'type' => $i['type']];
@@ -272,20 +331,27 @@ final class BoardTools
         if (!empty($i['locked'])) $o['locked'] = true;
         if (!empty($i['align'])) $o['align'] = $i['align'];
         switch ($i['type']) {
-            case 'note': case 'text': $o['text'] = Text::plain($d['html'] ?? ''); break;
+            case 'note': $o['text'] = Text::plain($d['html'] ?? ''); break;
+            case 'text':
+                $o['text'] = Text::plain($d['html'] ?? '');
+                $o += array_filter(['font' => ($d['font'] ?? 'sans') !== 'sans' ? $d['font'] : null,
+                                    'size' => isset($d['size']) ? (int) round($d['size']) : null,
+                                    'bold' => !empty($d['b']) ?: null, 'italic' => !empty($d['i']) ?: null, 'underline' => !empty($d['u']) ?: null,
+                                    'ink' => $d['ink'] ?? null, 'fill' => $d['bg'] ?? null], fn($v) => $v !== null);
+                break;
             case 'todo':
                 $o['title'] = $d['title'] ?? '';
                 $o['tasks'] = array_map(fn($t) => array_filter(['id' => $t['id'] ?? '', 'text' => $t['t'] ?? '', 'done' => !empty($t['done']),
                                                                 'due' => $t['due'] ?? null], fn($v) => $v !== null), $d['tasks'] ?? []);
                 break;
             case 'link': $o += array_filter(['url' => $d['url'] ?? '', 'title' => $d['title'] ?? '', 'description' => $d['desc'] ?? '']); break;
-            case 'image': $o['caption'] = Text::plain($d['caption'] ?? ''); if (!empty($d['src'])) $o['src'] = $d['src']; break;
+            case 'image': $o['caption'] = Text::plain($d['caption'] ?? ''); if (!empty($d['src'])) $o['src'] = $d['src']; if (!empty($d['asset'])) $o['asset'] = $d['asset']; break;
             case 'file': $o += ['name' => $d['name'] ?? '', 'size' => $d['size'] ?? 0]; break;
             case 'board':
                 $t = $d['target'] ?? '';
                 $o += ['board_id' => $t, 'title' => $w->boards[$t]['title'] ?? 'Missing board', 'cards' => count($w->itemsOf($t))];
                 if (!empty($d['asset'])) $o['icon'] = 'uploaded image';
-                elseif (!empty($d['icon'])) $o['icon'] = 'icon: ' . $d['icon'];
+                elseif (!empty($d['icon'])) { $o['icon'] = 'icon: ' . $d['icon']; $o['icon_name'] = $d['icon']; }
                 elseif (!empty($d['emoji'])) $o['icon'] = $d['emoji'];
                 break;
             case 'shortcut':
@@ -295,14 +361,15 @@ final class BoardTools
                 break;
             case 'column':
                 $o['title'] = $d['title'] ?? '';
+                $o['direction'] = ($d['dir'] ?? '') === 'row' ? 'horizontal' : 'vertical';
                 if (!empty($d['collapsed'])) $o['collapsed'] = true;
                 $o['cards'] = array_map(fn($k) => self::describe($w, $k, true), $w->childrenOf($i['id']));
                 break;
             case 'table': $o['rows'] = $d['rows'] ?? []; break;
             case 'doc': $o += ['title' => $d['title'] ?? '', 'text' => Text::plain($d['html'] ?? '')]; break;
             case 'swatch': $o['hex'] = $d['hex'] ?? ''; break;
-            case 'icon': $o += array_filter(['label' => $d['label'] ?? '', 'logo' => $d['ref'] ?? (!empty($d['asset']) ? 'uploaded image' : '')]); break;
-            case 'group': $o['title'] = $d['title'] ?? ''; break;
+            case 'icon': $o += array_filter(['label' => $d['label'] ?? '', 'icon_ref' => $d['ref'] ?? (!empty($d['asset']) ? 'uploaded image' : '')]); break;
+            case 'group': $o += array_filter(['title' => $d['title'] ?? '', 'solid' => !empty($d['solid']) ?: null, 'icon_ref' => $d['ref'] ?? null]); break;
         }
         // comments on any card, as "Name: text"
         $c = self::comments($w);
@@ -370,7 +437,7 @@ final class BoardTools
 
     /* ---------- writing ---------- */
 
-    private static function createCards(Workspace $w, array $u, string $bid, mixed $cards): array
+    public static function createCards(Workspace $w, array $u, string $bid, mixed $cards): array
     {
         if (!is_array($cards) || !$cards || !array_is_list($cards)) throw new ToolError('Pass cards as a non-empty list');
         if (count($cards) > 100) throw new ToolError('At most 100 cards per call');
@@ -388,6 +455,7 @@ final class BoardTools
                    'color' => array_key_exists('color', $c) ? self::color($c['color']) : ($styles[$type]['color'] ?? null)];
             if ($bid === self::UNSORTED) $it['order'] = (int) (microtime(true) * 1000) + $n;
             $it['data'] = self::dataFor($type, $c);
+            if ($type === 'text') $it['data'] = self::applyTextStyle($it['data'], $c);
             if ($type === 'table' && isset($styles['table']['header'])) $it['data']['header'] = $styles['table']['header'];
             if (in_array($type, Styles::ALIGNABLE, true)) {
                 $al = array_key_exists('align', $c) ? self::align($type, $c['align']) : ($styles[$type]['align'] ?? null);
@@ -408,15 +476,36 @@ final class BoardTools
                 $res['board_id'] = $t;
             }
             if ($type === 'sketch') $it['h'] = 220;
+            if ($type === 'group') $it['h'] = self::num($c['h'] ?? null, 60, 3000) ?? 300;
+            if ($type === 'icon') {
+                $it['data'] = self::iconRef($c['icon_ref'] ?? null);
+                if (($lbl = self::str($c['label'] ?? '', 80)) !== '') $it['data']['label'] = $lbl;
+            }
+            if ($type === 'group') {
+                $it['data'] = array_filter(['title' => self::str($c['title'] ?? '', 200), 'solid' => !empty($c['solid']) ?: null], fn($v) => $v !== null);
+                if (isset($c['icon_ref'])) $it['data'] += self::iconRef($c['icon_ref']);
+            }
+            if ($type === 'image') {
+                $it['data'] = self::imageData($w, $u, $bid, $c);
+                if (($cap = self::str($c['text'] ?? '', 5000)) !== '') $it['data']['caption'] = Text::html($cap);
+            }
             $colId = isset($c['column_id']) ? (string) $c['column_id'] : '';
-            if ($colId !== '') {
+            $bounds = $type === 'group' && isset($c['around_card_ids']) ? self::groupBounds($w, $bid, $c['around_card_ids']) : null;
+            if ($bounds) {
+                [$it['x'], $it['y'], $it['w'], $it['h']] = $bounds;
+            } elseif ($colId !== '') {
                 $colId = $refs[$colId] ?? $colId;
                 self::intoColumn($w, $it, $colId);
                 $res['column_id'] = $colId;
             } elseif (isset($c['x'], $c['y']) && is_numeric($c['x']) && is_numeric($c['y'])) {
                 $it['x'] = (int) round((float) $c['x']); $it['y'] = (int) round((float) $c['y']);
             } else {
-                [$it['x'], $it['y']] = $place->next($it['w'], $type === 'column' ? 420 : 240);
+                $box = Placer::box($w, $it);
+                // a new horizontal column is as wide as the cards this call puts in it
+                if (($it['data']['dir'] ?? '') === 'row') {
+                    $box['w'] = Placer::rowColumnWidth(isset($c['ref']) ? count(array_filter($cards, fn($k) => is_array($k) && ($k['column_id'] ?? null) === $c['ref'])) : 0);
+                }
+                [$it['x'], $it['y']] = $place->next($box['w'], $box['h']);
             }
             $w->putItem($it);
             if ($colId !== '' && isset($c['position'])) self::reorder($w, $colId, $it['id'], (int) $c['position']);
@@ -477,6 +566,33 @@ final class BoardTools
         if (array_key_exists('collapsed', $a)) {
             if ($type !== 'column') throw new ToolError('Only columns can be collapsed');
             if ($a['collapsed']) $d['collapsed'] = true; else unset($d['collapsed']);
+        }
+        if (array_key_exists('direction', $a)) {
+            if ($type !== 'column') throw new ToolError('Only columns have a layout direction');
+            $dir = self::columnDir($a['direction'] === 'vertical' ? null : $a['direction']);
+            if ($dir) $d['dir'] = $dir; else unset($d['dir']);
+        }
+        if (array_key_exists('icon_ref', $a)) {
+            if (!in_array($type, ['icon', 'group'], true)) throw new ToolError('Only icon and group cards have an icon_ref');
+            if ($a['icon_ref'] === '') {
+                if ($type === 'icon') throw new ToolError('An icon card needs an icon_ref; pass a different one');
+                unset($d['ref'], $d['dark']);
+            } else {
+                unset($d['ref'], $d['dark']);
+                $d += self::iconRef($a['icon_ref']);
+            }
+        }
+        if (array_key_exists('label', $a)) {
+            if ($type !== 'icon') throw new ToolError('Only icon cards have a label');
+            $d['label'] = self::str($a['label'], 80);
+        }
+        if (array_key_exists('solid', $a)) {
+            if ($type !== 'group') throw new ToolError('Only group cards have a border style');
+            if ($a['solid']) $d['solid'] = true; else unset($d['solid']);
+        }
+        if (array_intersect(['font', 'size', 'bold', 'italic', 'underline', 'ink', 'fill'], array_keys($a))) {
+            if ($type !== 'text') throw new ToolError('Only text cards have a font, size, style, ink or fill');
+            $d = self::applyTextStyle($d, $a);
         }
         $it['data'] = $d;
         if (array_key_exists('color', $a)) $it['color'] = self::color($a['color']);
@@ -639,12 +755,14 @@ final class BoardTools
         self::requireEditor($w, $from['board'] ?? '');
         if ($from['id'] === $to['id']) throw new ToolError('Pick two different cards');
         if ($from['board'] !== $to['board']) throw new ToolError('Both cards must be on the same board');
-        // the person's line style (route, arrowheads, head, width, dash, colour); "arrow" from the call wins
+        // the person's line style (route, arrowheads, head, width, dash, colour); the call's own fields win
         $s = Styles::get($u['id'])['line'] ?? [];
         $ln = ['id' => Workspace::uid(), 'board' => $from['board'], 'a' => ['item' => $from['id']], 'b' => ['item' => $to['id']],
-               'arrow' => array_key_exists('arrow', $a) ? $a['arrow'] !== false : ($s['arrow'] ?? true), 'color' => $s['color'] ?? null, 'bend' => 0]
+               'arrow' => array_key_exists('arrow', $a) ? $a['arrow'] !== false : ($s['arrow'] ?? true),
+               'color' => array_key_exists('color', $a) ? self::color($a['color']) : ($s['color'] ?? null), 'bend' => 0]
             + array_intersect_key($s, ['route' => 1, 'arrowStart' => 1, 'head' => 1, 'width' => 1, 'dash' => 1]);
-        if (($ln['route'] ?? '') === 'curved') {   // a curve needs a bend to show; about a fifth of the distance, like the browser
+        self::applyLineStyle($ln, $a);
+        if (($ln['route'] ?? '') === 'curved' && !$ln['bend']) {   // a curve needs a bend to show; about a fifth of the distance, like the browser
             $ln['bend'] = (int) max(40, round(hypot(($to['x'] ?? 0) - ($from['x'] ?? 0), ($to['y'] ?? 0) - ($from['y'] ?? 0)) * 0.2));
         }
         if (($l = self::str($a['label'] ?? '', 120)) !== '') $ln['label'] = $l;
@@ -674,8 +792,37 @@ final class BoardTools
         }
         if (array_key_exists('arrow', $a)) $ln['arrow'] = (bool) $a['arrow'];
         if (array_key_exists('color', $a)) $ln['color'] = self::color($a['color']);
+        self::applyLineStyle($ln, $a);
         $w->putLine($ln);
-        return ['updated' => array_filter(['id' => $id, 'label' => ($ln['label'] ?? '') ?: null, 'arrow' => !empty($ln['arrow']), 'color' => $ln['color'] ?? null], fn($v) => $v !== null)];
+        return ['updated' => array_filter(['id' => $id, 'label' => ($ln['label'] ?? '') ?: null, 'arrow' => !empty($ln['arrow']), 'color' => $ln['color'] ?? null,
+                                           'arrow_start' => !empty($ln['arrowStart']) ?: null,
+                                           'route' => isset($ln['route']) && $ln['route'] !== 'straight' ? $ln['route'] : null,
+                                           'dash' => isset($ln['dash']) && $ln['dash'] !== 'solid' ? $ln['dash'] : null,
+                                           'width' => isset($ln['width']) && $ln['width'] !== 2 ? $ln['width'] : null,
+                                           'head' => isset($ln['head']) && $ln['head'] !== 'triangle' ? $ln['head'] : null], fn($v) => $v !== null)];
+    }
+
+    /** route/dash/width/head/arrow_start from the model onto a line; a curved route without a bend gets one, like the browser. */
+    private static function applyLineStyle(array &$ln, array $a): void
+    {
+        if (array_key_exists('route', $a)) {
+            if (!in_array($a['route'], self::ROUTES, true)) throw new ToolError('route must be one of ' . implode(', ', self::ROUTES));
+            $ln['route'] = $a['route'];
+            if ($a['route'] !== 'curved') $ln['bend'] = 0;
+        }
+        if (array_key_exists('dash', $a)) {
+            if (!in_array($a['dash'], self::DASHES, true)) throw new ToolError('dash must be one of ' . implode(', ', self::DASHES));
+            if ($a['dash'] === 'solid') unset($ln['dash']); else $ln['dash'] = $a['dash'];
+        }
+        if (array_key_exists('width', $a)) {
+            if (!in_array((int) $a['width'], self::WIDTHS, true)) throw new ToolError('width must be one of ' . implode(', ', self::WIDTHS));
+            if ((int) $a['width'] === 2) unset($ln['width']); else $ln['width'] = (int) $a['width'];
+        }
+        if (array_key_exists('head', $a)) {
+            if (!in_array($a['head'], self::HEADS, true)) throw new ToolError('head must be one of ' . implode(', ', self::HEADS));
+            if ($a['head'] === 'triangle') unset($ln['head']); else $ln['head'] = $a['head'];
+        }
+        if (array_key_exists('arrow_start', $a)) { if ($a['arrow_start']) $ln['arrowStart'] = true; else unset($ln['arrowStart']); }
     }
 
     /** Comment on a card and/or resolve its thread, through the comments API (mentions notify, rules hold). */
@@ -715,7 +862,7 @@ final class BoardTools
             if ($a['corners'] === 'sharp') unset($b['corners']); else $b['corners'] = $a['corners'];
         }
         $w->putBoard($b);
-        if (array_key_exists('icon', $a) || array_key_exists('parent_board_id', $a)) {
+        if (array_key_exists('icon', $a) || array_key_exists('icon_name', $a) || array_key_exists('parent_board_id', $a)) {
             $card = null;
             foreach ($w->items as $i) if ($i['type'] === 'board' && ($i['data']['target'] ?? null) === $bid) { $card = $i; break; }
             if (!$card) throw new ToolError('This board has no card that opens it (a top board has no icon and can’t be moved)');
@@ -726,6 +873,16 @@ final class BoardTools
                 // an emoji replaces an icon or picture picked in the app
                 unset($card['data']['icon'], $card['data']['asset']);
                 if ($icon === '') unset($card['data']['emoji']); else $card['data']['emoji'] = $icon;
+                $w->putItem($card);
+            }
+            if (array_key_exists('icon_name', $a)) {
+                $name = self::str($a['icon_name'], 60);
+                unset($card['data']['emoji'], $card['data']['asset']);
+                if ($name === '') unset($card['data']['icon']);
+                else {
+                    if (!isset(self::iconCatalog()['lucide'][$name])) throw new ToolError("No Lucide icon named $name (call list_icons with a \"lucide/\" ref)");
+                    $card['data']['icon'] = $name;
+                }
                 $w->putItem($card);
             }
             if (array_key_exists('parent_board_id', $a) && (string) $a['parent_board_id'] !== $card['board']) {
@@ -787,7 +944,7 @@ final class BoardTools
             'note', 'text' => ['html' => Text::html($text)],
             'todo' => ['title' => $title, 'tasks' => self::tasks($c['tasks'] ?? [])],
             'link' => self::linkData((string) ($c['url'] ?? ''), $title),
-            'column' => ['title' => $title],
+            'column' => ['title' => $title] + (($dir = self::columnDir($c['direction'] ?? null)) ? ['dir' => $dir] : []),
             'table' => ['rows' => isset($c['rows']) ? self::rows($c['rows']) : [['', '', ''], ['', '', ''], ['', '', '']], 'header' => true],
             'doc' => ['title' => $title, 'html' => Text::html($text)],
             'comment' => [],
@@ -846,7 +1003,8 @@ final class BoardTools
         $old = $it['col'] ?? null;
         $from = $it['board'];
         $it['board'] = $bid; $it['col'] = null;
-        [$it['x'], $it['y']] = (new Placer($w, $bid))->next($it['w'] ?? 260, 240);
+        $box = Placer::box($w, $it);
+        [$it['x'], $it['y']] = (new Placer($w, $bid))->next($box['w'], $box['h']);
         $it['z'] = $w->maxZ($bid) + 1;
         $it['order'] = $bid === self::UNSORTED ? (int) (microtime(true) * 1000) : 0;
         if ($it['type'] === 'column') foreach ($w->childrenOf($it['id']) as $k) { $k['board'] = $bid; $w->putItem($k); }
@@ -857,14 +1015,14 @@ final class BoardTools
         if ($old) self::renumber($w, $old);
     }
 
-    private static function boardArg(Workspace $w, mixed $id): string
+    public static function boardArg(Workspace $w, mixed $id): string
     {
         $id = is_string($id) ? trim($id) : '';
         if ($id === self::UNSORTED || isset($w->boards[$id])) return $id;
         throw new ToolError($id === '' ? 'Pass board_id' : "No board with id $id (use list_boards)");
     }
 
-    private static function card(Workspace $w, mixed $id): array
+    public static function card(Workspace $w, mixed $id): array
     {
         if (!is_string($id) || !isset($w->items[$id])) throw new ToolError('No card with id ' . (is_string($id) ? $id : '?'));
         return $w->items[$id];
@@ -956,7 +1114,7 @@ final class BoardTools
         return array_map(fn($r) => array_pad(array_map(fn($c) => is_scalar($c) ? (string) $c : '', array_values((array) $r)), $width, ''), array_values($rows));
     }
 
-    private static function color(mixed $c): ?string
+    public static function color(mixed $c): ?string
     {
         if ($c === null || $c === '' || $c === 'none') return null;
         if (!in_array($c, self::COLORS, true)) throw new ToolError('color must be one of ' . implode(', ', self::COLORS) . ' or none');
@@ -977,41 +1135,170 @@ final class BoardTools
         return '#' . strtolower($m[1]);
     }
 
-    private static function str(mixed $v, int $max): string
+    public static function str(mixed $v, int $max): string
     {
         if ($v === null) return '';
         if (!is_scalar($v)) throw new ToolError('Expected text');
         return mb_substr(trim((string) $v), 0, $max);
     }
 
-    private static function num(mixed $v, float $min, float $max): ?int
+    public static function num(mixed $v, float $min, float $max): ?int
     {
         return is_numeric($v) ? (int) round(max($min, min($max, (float) $v))) : null;
     }
-}
 
-/** A tool was called with bad arguments; the message goes back to the model. */
-final class ToolError extends \RuntimeException {}
-
-/** Finds free space for new cards: a row to the right of what is already on the board. */
-final class Placer
-{
-    private int $x0; private int $x; private int $y; private int $rowH = 0; private int $n = 0;
-
-    public function __construct(Workspace $w, string $board)
+    /** "horizontal"/"vertical" (or empty) from the model, as data.dir ("row" or unset); throws on anything else. */
+    private static function columnDir(mixed $v): ?string
     {
-        $top = array_filter($w->itemsOf($board), fn($i) => empty($i['col']));
-        if (!$top) { $this->x0 = $this->x = 40; $this->y = 40; return; }
-        $right = max(array_map(fn($i) => ($i['x'] ?? 0) + ($i['w'] ?? 260), $top));
-        $this->y = (int) min(array_map(fn($i) => $i['y'] ?? 0, $top));
-        $this->x0 = $this->x = (int) $right + 60;
+        if ($v === null || $v === '') return null;
+        if (!in_array($v, self::COLUMN_DIRS, true)) throw new ToolError('direction must be one of ' . implode(', ', self::COLUMN_DIRS));
+        return $v === 'horizontal' ? 'row' : null;
     }
 
-    public function next(int $w, int $h): array
+    /** A custom hex text colour (data.ink on a text card), or null to clear it ("" from the model). */
+    private static function ink(mixed $v): ?string
     {
-        if ($this->n > 0 && $this->n % 4 === 0) { $this->x = $this->x0; $this->y += $this->rowH + 40; $this->rowH = 0; }
-        $p = [$this->x, $this->y];
-        $this->x += $w + 30; $this->rowH = max($this->rowH, $h); $this->n++;
-        return $p;
+        if ($v === null || $v === '') return null;
+        return self::hex($v);
+    }
+
+    /** A text card's fill (data.bg): a palette colour key, a hex colour, or null/"none" to clear it. */
+    private static function fill(mixed $v): ?string
+    {
+        if ($v === null || $v === '' || $v === 'none') return null;
+        if (is_string($v) && in_array($v, self::COLORS, true)) return $v;
+        return self::hex($v);
+    }
+
+    /** Apply font/size/bold/italic/underline/ink/fill from the model onto a text card's data; only the keys passed change. */
+    private static function applyTextStyle(array $d, array $a): array
+    {
+        if (array_key_exists('font', $a)) {
+            if (!in_array($a['font'], self::FONTS, true)) throw new ToolError('font must be one of ' . implode(', ', self::FONTS));
+            if ($a['font'] === 'sans') unset($d['font']); else $d['font'] = $a['font'];
+        }
+        if (array_key_exists('size', $a)) {
+            $size = self::num($a['size'], 8, 200) ?? throw new ToolError('size must be a number between 8 and 200');
+            if ($size === 20) unset($d['size']); else $d['size'] = $size;
+        }
+        foreach (['bold' => 'b', 'italic' => 'i', 'underline' => 'u'] as $k => $f) {
+            if (array_key_exists($k, $a)) { if ($a[$k]) $d[$f] = true; else unset($d[$f]); }
+        }
+        if (array_key_exists('ink', $a)) { $ink = self::ink($a['ink']); if ($ink) $d['ink'] = $ink; else unset($d['ink']); }
+        if (array_key_exists('fill', $a)) { $fill = self::fill($a['fill']); if ($fill) $d['bg'] = $fill; else unset($d['bg']); }
+        return $d;
+    }
+
+    /** Icon/logo catalogue the browser ships (src/vendor): logo refs (aws/dev/brand) with their title, tags and dark style, and Lucide names. */
+    private static function iconCatalog(): array
+    {
+        if (self::$iconCatalog !== null) return self::$iconCatalog;
+        $logos = [];
+        $idx = json_decode((string) @file_get_contents(NK_ROOT . '/src/vendor/logos/index.json'), true) ?: [];
+        foreach ($idx['packs'] ?? [] as $pack) {
+            foreach ($pack['groups'] ?? [] as $g) {
+                foreach ($g['icons'] ?? [] as $e) {
+                    [$ref, $title, $tags, $dark] = array_pad((array) $e, 4, null);
+                    if (is_string($ref) && $ref !== '') $logos[$ref] = ['title' => (string) $title, 'tags' => (string) $tags, 'dark' => (int) $dark];
+                }
+            }
+        }
+        $lucideRaw = json_decode((string) @file_get_contents(NK_ROOT . '/src/vendor/lucide.json'), true) ?: [];
+        $lucide = [];
+        foreach ($lucideRaw['icons'] ?? [] as $name => $e) $lucide[$name] = (string) ($e[1] ?? '');
+        return self::$iconCatalog = ['logos' => $logos, 'lucide' => $lucide];
+    }
+
+    /** Icon/logo refs matching $q (name/title/tags), for list_icons. */
+    private static function listIcons(string $q, int $limit): array
+    {
+        $limit = max(1, min(200, $limit ?: 40));
+        $cat = self::iconCatalog();
+        $q = trim(mb_strtolower($q));
+        $out = [];
+        foreach ($cat['logos'] as $ref => $e) {
+            if ($q !== '' && !str_contains(mb_strtolower($ref . ' ' . $e['title'] . ' ' . $e['tags']), $q)) continue;
+            $out[] = ['ref' => $ref, 'title' => $e['title']];
+            if (count($out) >= $limit) return ['icons' => $out];
+        }
+        foreach ($cat['lucide'] as $name => $tags) {
+            $ref = 'lucide/' . $name;
+            if ($q !== '' && !str_contains(mb_strtolower($ref . ' ' . $tags), $q)) continue;
+            $out[] = ['ref' => $ref, 'title' => $name];
+            if (count($out) >= $limit) break;
+        }
+        return ['icons' => $out];
+    }
+
+    /** data for an icon card's ref (plus its catalogue dark style, when the logo has one); throws for an unknown ref. */
+    private static function iconRef(mixed $ref): array
+    {
+        if (!is_string($ref) || $ref === '') throw new ToolError('Pass icon_ref (call list_icons for valid refs)');
+        $cat = self::iconCatalog();
+        if (str_starts_with($ref, 'lucide/')) {
+            if (!isset($cat['lucide'][substr($ref, 7)])) throw new ToolError("No icon ref $ref (call list_icons)");
+            return ['ref' => $ref];
+        }
+        if (!isset($cat['logos'][$ref])) throw new ToolError("No icon ref $ref (call list_icons)");
+        $d = ['ref' => $ref];
+        if ($cat['logos'][$ref]['dark']) $d['dark'] = $cat['logos'][$ref]['dark'];
+        return $d;
+    }
+
+    /** [x, y, w, h] of a box around these cards (on $bid, not inside a column), with the same padding the browser's group tool uses. */
+    private static function groupBounds(Workspace $w, string $bid, mixed $ids): array
+    {
+        if (!is_array($ids) || !$ids) throw new ToolError('around_card_ids must be a non-empty list');
+        $rs = [];
+        foreach ($ids as $id) {
+            $it = is_string($id) ? ($w->items[$id] ?? null) : null;
+            if (!$it || ($it['board'] ?? '') !== $bid) throw new ToolError('No card with id ' . (is_string($id) ? $id : '?') . ' on this board');
+            if (!empty($it['col'])) continue;   // a card inside a column has no box of its own on the board
+            $rs[] = Placer::box($w, $it);
+        }
+        if (!$rs) throw new ToolError('around_card_ids has no cards on the board to draw a box around');
+        $pad = 28; $head = 44;
+        $x1 = min(array_column($rs, 'x')) - $pad; $y1 = min(array_column($rs, 'y')) - $head;
+        $x2 = max(array_map(fn($r) => $r['x'] + $r['w'], $rs)) + $pad; $y2 = max(array_map(fn($r) => $r['y'] + $r['h'], $rs)) + $pad;
+        return [(int) round($x1), (int) round($y1), max(80, (int) round($x2 - $x1)), max(60, (int) round($y2 - $y1))];
+    }
+
+    /** Downloads a public https picture through Fetch (no private/local addresses, size and time capped) and checks its type. */
+    private static function fetchImage(string $url): array
+    {
+        $maxBytes = (int) Config::get('max_upload_mb') * 1024 * 1024;
+        $tmp = tempnam(sys_get_temp_dir(), 'kolam-img-');
+        $fh = fopen($tmp, 'w+b');
+        $r = Fetch::get($url, $fh, $maxBytes + 1, ['https_only' => true, 'timeout' => 12]);
+        fclose($fh);
+        $fail = function (string $msg) use ($tmp): never { @unlink($tmp); throw new ToolError($msg); };
+        match ($r['refused'] ?? null) {
+            'url' => $fail('Pass a public https image URL'),
+            'private' => $fail('That URL points at a private or local address'),
+            'redirects' => $fail('Too many redirects fetching that image'),
+            default => null,
+        };
+        if ($r['over']) $fail('That image is larger than ' . Config::get('max_upload_mb') . ' MB');
+        if (!in_array($r['code'], [200, 206], true) || $r['bytes'] === 0) $fail("Couldn't fetch that image (HTTP {$r['code']})");
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: '';
+        // libmagic calls some SVGs XML or plain text, as Assets::store notes
+        if ($mime !== 'image/svg+xml' && preg_match('~^(image/svg|text/(xml|plain|html)|application/xml)$~', $mime)
+            && preg_match('/<svg[\s>]/i', (string) file_get_contents($tmp, false, null, 0, 65536))) $mime = 'image/svg+xml';
+        if (!in_array($mime, self::IMAGE_TYPES, true)) $fail('That URL isn’t a supported image type (PNG, JPEG, GIF, WebP, AVIF, BMP or SVG)');
+        return [$tmp, $mime, $r['bytes']];
+    }
+
+    /** Fetches an image card's url and stores it as an asset the same way an upload is, counting toward the uploader's plan storage. */
+    private static function imageData(Workspace $w, array $u, string $bid, array $c): array
+    {
+        $url = trim((string) ($c['url'] ?? ''));
+        if ($url === '') throw new ToolError('Pass url for an image card');
+        [$tmp, $mime, $size] = self::fetchImage($url);
+        try {
+            $space = Access::space($w->spaceId);
+            $name = mb_substr((string) (basename((string) parse_url($url, PHP_URL_PATH)) ?: 'image'), 0, 200);
+            $asset = Assets::store($u['id'], $tmp, $name, $size, null, $w->spaceId);
+        } finally { @unlink($tmp); }
+        return ['asset' => $asset['id']];
     }
 }

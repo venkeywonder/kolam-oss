@@ -20,10 +20,10 @@ final class Workspace
 
     private function __construct(private array $user, public readonly string $spaceId) {}
 
-    /** Loads the boards the person can see in a space (their own boards when $spaceId is omitted). */
+    /** Loads the boards the person can see in a space (their home workspace when $spaceId is omitted). */
     public static function load(array $u, ?string $spaceId = null): self
     {
-        $spaceId ??= Spaces::personal($u['id'])['id'];
+        $spaceId ??= Spaces::home($u['id'])['id'];
         Access::forget($spaceId);   // a long-running MCP process: boards made or shared since the last call count
         $space = Access::space($spaceId);
         $roles = Access::boards($u['id'], $space);

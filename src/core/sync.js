@@ -9,7 +9,7 @@
  */
 import { $ } from './util.js';
 import { api, assetUrl, upload } from './api.js';
-import { ACC, LINK, ROOT, S, SPACE, VIEW, can, cur, docOpen, dragging, isPersonal, markRemote, setACC, setCur, setROOT, setS } from './store.js';
+import { ACC, LINK, ROOT, S, SPACE, VIEW, can, cur, docOpen, dragging, isHome, markRemote, setACC, setCur, setROOT, setS } from './store.js';
 import { seed } from './seed.js';
 import { render } from '../canvas/render.js';
 import { modal } from '../ui/modal.js';
@@ -39,7 +39,7 @@ export const DB = {
   set(k, v) { return new Promise((res, rej) => { const tx = this.db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
 };
 
-export let user = null;            // signed-in account (id, email, name, space = their own space id)
+export let user = null;            // signed-in account (id, email, name, space = their home workspace id)
 export const setUser = u => (user = u);
 export let serverOK = true;        // false while offline
 export const setServerOK = v => (serverOK = v);
@@ -51,8 +51,8 @@ let rev = 0;                       // last server revision of this space we have
 let acl = -1;                      // access revision we know about (who can see what)
 let synced = { board: new Map(), item: new Map(), line: new Map(), trash: new Map() };
 let pushing = null;
-// your own space keeps the cache key it had before spaces existed
-const cacheKey = () => 'cache:' + user.id + (SPACE === user.space ? '' : ':' + SPACE);
+// the workspace with the account's own id (once "My boards") keeps the cache key it had before workspaces existed
+const cacheKey = () => 'cache:' + user.id + (SPACE === user.id ? '' : ':' + SPACE);
 const q = () => 'space=' + encodeURIComponent(SPACE);
 
 const records = {
@@ -103,7 +103,7 @@ export function save(quiet) {
   S.updatedAt = Date.now();
   if (!quiet) setStatus('Saving…', 'saving');
   // a burst of changes goes out every few hundred ms rather than after it ends, so others see you type
-  const due = Date.now() + (quiet ? 900 : !isPersonal() && isLive() ? 250 : 400);
+  const due = Date.now() + (quiet ? 900 : isLive() ? 250 : 400);
   if (saveT && saveDue <= due) return;
   clearTimeout(saveT);
   saveDue = due;
@@ -244,7 +244,7 @@ export function refresh() {
 
 /** Where a space opens: your own Home, a workspace's top board, or the first board shared with you. */
 export function defaultRoot() {
-  if (S.boards.home && (isPersonal() || ACC?.boards?.home)) return 'home';
+  if (S.boards.home && (isHome() || ACC?.boards?.home)) return 'home';
   return ACC?.roots?.find(b => S.boards[b]) || Object.keys(S.boards)[0] || 'home';
 }
 
@@ -271,7 +271,7 @@ export async function load() {
     serverOK = false;
     if (!cache) throw e;
   }
-  if (isPersonal() && !S.boards.home) {   // brand-new account
+  if (isHome() && !S.boards.home) {   // brand-new account
     const s = seed();
     Object.assign(S.boards, s.boards); Object.assign(S.items, s.items); Object.assign(S.lines, s.lines);
     save(true);

@@ -302,6 +302,14 @@ final class Db
                 "CREATE TABLE google_flows (state_hash CHAR(64) PRIMARY KEY, verifier VARCHAR(128) NOT NULL, nonce VARCHAR(64) NOT NULL,
                   intent TEXT NOT NULL, expires_at BIGINT NOT NULL)",
             ],
+            // favorite tools on the floating bar at the bottom of the board (Favorites.php), JSON; NULL until changed
+            19 => [
+                "ALTER TABLE users ADD COLUMN favorites TEXT",
+            ],
+            // one workspace for everyone: each person's own boards become their home workspace (see Spaces::migratePersonal)
+            20 => [
+                fn() => Spaces::migratePersonal(),
+            ],
         ];
         // Most requests find the schema current. Otherwise one request migrates while the others wait for it, then
         // read the version again (two requests running the same step would fail on "table already exists").

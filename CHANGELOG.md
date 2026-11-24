@@ -2,20 +2,27 @@
 
 ## 2026-11-24
 
-- **Continue with Google**: sign in or create an account with your Google account in one click, from the sign-in screen, from an invitation or join link, and from the page that connects Claude Code or Codex. If you already have an account with the same address, Google signs you in to it, and your password keeps working too. In Account settings, **Sign-in & devices** (formerly Password & devices) lets you connect or disconnect Google. Accounts made with Google can get a password by email whenever they want one, and confirm deleting the account by typing their email address. Kolam emails you whenever a Google account is connected to yours. Self-hosters turn it on with `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` ([how](docs/self-hosting.md)); without them the button stays hidden.
-- **Sign-in and sign-up screens**: the form now tells you what's wrong next to the field (a missing email, an address that doesn't look right, a password under 8 characters) before sending anything. The new-password hint turns green once it's long enough, and you're warned when Caps Lock is on. A password manager that fills in and sends the form straight away no longer gets "Please take a moment and try again." Switching between **Sign in** and **Create an account** keeps what you typed. **Forgot password?** sits next to the password label, no longer squeezed under the button, and carries your email over. **Back to sign in** no longer leaves a blank page. The Cloudflare security check now appears on every screen: before, it was missing after switching to **Create an account** or opening **Forgot password?**, so those forms couldn't be sent. It's also as wide as the fields, follows dark mode, and gives you a fresh check after a failed try. What you type now shows in normal-weight text. The screens scroll on short screens, phones don't zoom in on the fields, and the tab title says which screen you're on.
-- **Logo emblem**: the Kolam mark now sits on a tile: a white line on a lit sunset tile in light mode, a sunset line on a dark tile in dark mode. The app's top bar, the sign-in screens and the favicon use it, and the favicon follows your system's light or dark setting.
-- **Branded emails**: emails from Kolam (confirm your address, password reset, welcome, invitations and account deletion notices) now open with the Kolam emblem and name, in one consistent layout.
-- **Icons and logos for diagrams**: the new **Icon** tool puts a logo straight on the board with its name underneath, for architecture and backend diagrams. Pick from three sets. **Logos** has about 3,700 tech and brand logos (Postgres, Docker, Stripe, GitHub, Google Cloud…), grouped by area: cloud, databases, messaging, DevOps, monitoring, languages, frameworks, AI, auth, payments, communication, productivity and systems. **AWS** has the official AWS Architecture Icons (EC2, S3, Lambda, VPC…), grouped by AWS category; they come under AWS's own terms, see [`src/vendor/logos/README.md`](src/vendor/logos/README.md). **Icons** has plain shapes like server, user and lock, in any palette colour. You can also upload your own picture. Search finds any of them by name. Icons resize from their sides, connect with lines like any card, and black logos turn white on a dark board. Double-click an icon to rename it.
-- **Group boxes**: the new **Group** tool draws a labelled box (a VPC, a region, "Backend"…) that sits under your cards. Select a few cards and use **Group** (or right-click › **Group these**) to draw one around them. Drag a group by its label and everything inside it comes along. Its edges resize it, and clicks inside it still reach the cards, so you can box-select them. Give it a colour, a solid or dashed border, and an icon by its name.
-- **⌘S / Ctrl+S saves**: instead of opening the browser's "Save page" dialog, the shortcut now sends any unsaved changes right away, even while you're typing in a card. A small note in the bottom-right corner says "Changes saved successfully." (also when everything was already saved), or tells you if you're offline.
-- **Text on the board**: the new **Text** tool, first in the sidebar, puts words straight on the board with no card around them. Click it or drag it onto the board and start typing; it grows as you type until you drag its side to set a width (double-click the side to fit the words again). Select it to change its **Color**, **Font** (Sans, Serif, Mono or Hand, plus bold, italic and underline), **Size** (8 to 200 px) and **Fill** (none, a palette colour or any colour), and to **Align** it. While typing, the formatting bar adds headings, lists, quotes and links. Text connects to other cards with lines like any card, both ways. Your last look is the one new text gets.
-- **Board icons**: give a board any emoji, any of 2,000+ icons, or your own picture. Right-click the board (or select it and use **Icon**) and pick a tab. **Emoji** takes the usual ones plus anything you type or paste. **Icons** lets you search by name or meaning. **Image** uploads a PNG, JPG, WebP, GIF or SVG of up to 5 MB, at least 72 × 72 px and no more than 2:1. It fills the board's tile, cropped to a square and saved at 216 × 216 px so it stays sharp. Shortcuts to the board show the same icon.
-- **SVG images**: SVG files now show on the board like any other image, whether you upload them, drop them in or paste them.
-- **Transparent images**: a PNG, SVG, GIF or WebP with transparent parts now sits straight on the board, with no card colour or frame behind it (also in **View full size**). Selected, it still gets the selection outline.
-- **To-do lists**: the up and down arrow keys move the cursor between a list's title and its tasks, keeping its place across the line, so you no longer need the mouse to get to the next task.
-- **Colour cards**: hover a colour card (or select it) and click the picker in its middle to change the colour right on the card. Double-clicking the card still works too.
-- **Selecting in dark mode**: the rectangle you drag to select several cards is now visible in dark mode too.
+- **AI can do more**: draw diagrams with icons and groups, style text, add images, tidy layouts, use templates and restore versions.
+- **AI knows your board**: say "this board" and your AI works on the board you have open.
+- **Ready-made prompts**: pick "Summarise board", "Plan a project", "Weekly review" and more from your AI app's menu.
+- **Team setup from your AI**: create workspaces, invite people and make share links.
+- **Workspaces**: you start with one workspace instead of "My boards", and can add more. Switch between them next to the logo.
+- **Favorites bar**: a Dock-style bar at the bottom with Text, Note, To-do, Link and Column. Drag tools on or off it.
+- **Horizontal columns**: switch a column to horizontal and its cards line up side by side.
+- **Web clipper**: an animated guide shows how to put **Save to Kolam** on your bookmarks bar.
+- **Templates** show a picture of each layout.
+- **Right mouse button**: drag to pan; right-click a card or line to open its options.
+- **Continue with Google**: sign in or sign up with your Google account (set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to turn it on).
+- **Clearer sign-in**: errors show next to the field, with a Caps Lock warning, and your input is kept when you switch screens.
+- **Icon tool**: add tech logos, AWS icons or simple shapes to diagrams.
+- **Group tool**: draw a labelled box around cards and move them together.
+- **Text tool**: write straight on the board, with your choice of font, size, colour and fill.
+- **Board icons**: give a board an emoji, an icon or your own picture.
+- **⌘S / Ctrl+S** saves right away.
+- **Images**: SVGs are supported, and transparent images show without a card behind them.
+- **Smaller improvements**: arrow keys move between to-do tasks, colour cards have an inline picker, new and empty cards show a hand and drag right away, ⌘Z works on a card you haven't typed in, drop-downs look cleaner, emptying the Trash frees storage, and connecting your AI no longer hangs on a loading screen.
+- **Branding**: a new logo tile, and emails now carry the Kolam logo.
+- **Sign out** asks you to confirm first.
 
 ## 2026-11-23
 

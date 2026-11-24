@@ -129,8 +129,8 @@ const head = (title, lead) => `<header class="ac-head"><h2>${title}</h2><p>${lea
 function profileHtml() {
   const { u, config } = data;
   const email = !config.verification ? ''
-    : u.verified ? '<span class="ac-tag ok">Confirmed</span>'
-    : '<span class="ac-tag warn">Not confirmed</span> <button class="ac-link" type="button" data-resend>Send the link again</button>';
+    : u.verified ? '<span class="ac-tag ok">Verified</span>'
+    : '<span class="ac-tag warn">Not verified</span> <button class="ac-link" type="button" data-resend>Send the link again</button>';
   return head('Profile', 'How you appear to the people you work with.') + `
     <section class="ac-card">
       <form class="ac-form" data-name-form>

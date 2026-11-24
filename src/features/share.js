@@ -61,7 +61,6 @@ export async function openShare(space = SPACE, board = cur) {
 }
 
 function viaText(p) {
-  if (p.via === 'owner') return '';
   if (p.via === 'workspace') return `Workspace ${ROLE_LABEL[p.wsRole].toLowerCase()}`;
   if (p.via === 'inherited') return `Through “${esc(p.from.title)}”`;
   return '';
@@ -70,9 +69,9 @@ function viaText(p) {
 function shareModal(a) {
   const base = `boards/${a.space}/${encodeURIComponent(a.board)}`;
   const reopen = () => openShare(a.space, a.board);
-  const lead = a.owner.kind === 'workspace'
-    ? `In the workspace <b>${esc(a.owner.name)}</b>. Everyone in it can open this board.`
-    : a.owner.id === user.id ? 'Only you and the people below can open this board and the boards inside it.' : `Owned by <b>${esc(a.owner.name)}</b>.`;
+  const team = a.people.some(p => p.via === 'workspace' && p.id !== user.id);
+  const lead = `In the workspace <b>${esc(a.owner.name)}</b>. ` +
+    (team ? 'Everyone in it can open this board.' : 'Only you and the people below can open this board and the boards inside it.');
   const people = a.people.map(p => {
     const mine = p.id === user.id;
     const changeable = a.canManage && !mine && (p.via === 'direct' || p.via === 'inherited');
@@ -85,13 +84,13 @@ function shareModal(a) {
     });
   }).join('');
   const canMove = a.canManage && (contexts?.workspaces || []).some(w => w.id !== a.space && w.role !== 'guest');
-  const canTransfer = a.canManage && a.owner.kind === 'person' && a.people.some(p => p.id !== user.id);
+  const canTransfer = a.canManage && a.owner.mine && a.people.some(p => p.id !== user.id);
   const card = openModal(
     `<h2>Share “${esc(a.title)}”</h2><p class="pp-lead">${lead}</p>` +
     (a.canManage ? inviteForm(BOARD_ROLES, 'editor') : '') +
     `<div class="pp-sec">People with access</div>${people}` +
     invitesList(a.invites, a.canManage) + formerList(a.former) +
-    (a.canManage && a.nested ? `<label class="pp-check"><input type="checkbox" data-restrict${a.restricted ? ' checked' : ''}><span><b>Only people added here</b><small>People who can open the board above don’t get this one automatically${a.owner.kind === 'workspace' ? ' (workspace members and admins still do)' : ''}.</small></span></label>` : '') +
+    (a.canManage && a.nested ? `<label class="pp-check"><input type="checkbox" data-restrict${a.restricted ? ' checked' : ''}><span><b>Only people added here</b><small>People who can open the board above don’t get this one automatically (workspace members and admins still do).</small></span></label>` : '') +
     (a.canManage ? `<div class="pp-sec">Links<span class="grow"></span><button class="btn ghost sm" data-new-link>${icon('plus', 13)} New link</button></div><div class="pp-links">${linksHtml(a.links)}</div>` : '') +
     `<div class="m-actions pp-foot">` +
     (canMove ? '<button class="btn ghost" data-move>Move to workspace…</button>' : '') +
@@ -196,7 +195,7 @@ async function moveDialog(a) {
 async function transferDialog(a) {
   const list = a.people.filter(p => p.id !== user.id);
   const to = await choose(`Transfer “${a.title}”`,
-    'The board and everything inside it moves to their boards and they become the owner. You stay on as an editor.',
+    'The board and everything inside it moves to their workspace and they become the owner. You stay on as an editor.',
     [{ label: 'Cancel', cls: 'ghost', value: null }, ...list.map(p => ({ label: p.name, value: p.id }))]);
   if (!to) return openShare(a.space, a.board);
   const p = list.find(x => x.id === to);

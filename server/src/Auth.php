@@ -197,7 +197,7 @@ final class Auth
         return [$first, $invited, $first || $invited || Config::get('allow_signup')];
     }
 
-    /** Inserts an account with its own boards and returns its id. $passHash '' = no password (made with Google). */
+    /** Inserts an account with its home workspace and returns its id. $passHash '' = no password (made with Google). */
     public static function createUser(string $email, string $name, string $passHash, bool $verified, bool $first,
                                       ?string $googleSub = null): string
     {
@@ -205,7 +205,7 @@ final class Auth
         Db::q('INSERT INTO users (id, email, name, pass_hash, rev, created_at, email_verified_at, google_sub, google_email) VALUES (?,?,?,?,0,?,?,?,?)',
             [$id, $email, $name !== '' ? $name : explode('@', $email)[0], $passHash, time(), $verified ? time() : null,
              $googleSub, $googleSub === null ? null : $email]);
-        Spaces::personal($id);
+        Spaces::home($id);
         if ($first) Legacy::importInto($id);
         return $id;
     }
@@ -342,6 +342,7 @@ final class Auth
     {
         if (array_key_exists('notifyOff', $in)) Notify::setOff($u['id'], $in['notifyOff']);
         if (array_key_exists('styles', $in)) Styles::set($u['id'], $in['styles']);
+        if (array_key_exists('favorites', $in)) Favorites::set($u['id'], $in['favorites']);
         if (isset($in['name'])) {
             $name = Http::str($in, 'name', 120);
             if ($name !== '') Db::q('UPDATE users SET name = ? WHERE id = ?', [$name, $u['id']]);

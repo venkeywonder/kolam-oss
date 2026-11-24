@@ -6,7 +6,7 @@ import { childrenOf, isDescendantBoard, itemsOf, maxZ, opensBoard } from '../cor
 import { renderBoard } from './render.js';
 import { renderLines } from './lines.js';
 import { refreshSel, selectOnly } from './selection.js';
-import { exitEdit, startEdit } from './editing.js';
+import { caretEnd, exitEdit, startEdit, typedSinceEdit } from './editing.js';
 import { connStart } from './connectors.js';
 import { resetSize, resizeStart } from './resize.js';
 import { panStart } from './pointer.js';
@@ -34,12 +34,20 @@ export function cardDown(e, id) {
   if (e.button === 1) return panStart(e);
   if (e.button !== 0) return;
   if (e.target.closest('.rz')) { if (editingId && editingId !== id) exitEdit(); return resizeStart(e, id); }
-  if (editingId === id) return;           // let text editing / drawing work
+  if (editingId === id) {                 // let text editing / drawing work, but until something is typed a drag moves the card
+    if (!typedSinceEdit() && S.items[id]?.type !== 'sketch' && !e.target.closest('[data-nodrag],a,input,textarea') && !onText(e.target)) pressMove(e, id);
+    return;
+  }
   const conn = e.target.closest('.conn');
   if (conn) { if (editingId) exitEdit(); return connStart(e, id, conn.dataset.side); }
   if (spaceDown) return panStart(e);
   if (editingId) exitEdit();
-  if (e.target.closest('[data-nodrag]')) return;
+  const nd = e.target.closest('[data-nodrag]');
+  if (nd) {   // an empty text box, or the frame right around one (a new link card): a drag moves the card
+    const f = blankField(e.target) ? e.target : e.target === nd && $(':scope > input,:scope > textarea', nd);
+    if (f && blankField(f)) pressMove(e, id, f);
+    return;
+  }
   e.preventDefault();
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   const was = sel.has(id) && sel.size === 1;
@@ -56,6 +64,41 @@ export function cardDown(e, id) {
   };
   const up = ev => {
     if (d) dragEnd(d); else cardClick(ev, id, was, e.target);
+  };
+  track(mv, up);
+}
+/** An empty text box on a card (a new link's address, a comment reply): a drag from it moves the card. */
+const blankField = t => t.matches('textarea,input:not([type=color],[type=range],[type=checkbox],[type=radio],[type=file])') && !t.value;
+/** Pressed on text that's already there (a table cell, a title): that press selects text rather than moving the card. */
+const onText = t => !!t.closest('[contenteditable=true]')?.textContent.trim();
+/*
+ * A press on a card that is waiting for typing: moving past 4px drags the card (it stays ready to type afterwards);
+ * letting go without moving puts the caret where you pressed, as a plain click would.
+ */
+function pressMove(e, id, field = e.target) {
+  e.preventDefault();
+  const sx = e.clientX, sy = e.clientY;
+  let d = null;
+  const mv = ev => {
+    if (!d) {
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
+      getSelection()?.removeAllRanges(); document.activeElement?.blur?.();
+      if (!sel.has(id)) selectOnly(id);
+      d = dragBegin(sx, sy);
+    }
+    dragMove(d, ev);
+  };
+  const up = () => {
+    if (d) dragEnd(d);
+    const el = els.get(id); if (!el) return;
+    if (editingId === id) {
+      const t = !d && field.closest?.('[contenteditable=true]');
+      if (t && el.contains(t)) {
+        t.focus();
+        const r = document.caretRangeFromPoint?.(sx, sy);
+        if (r) { const s = getSelection(); s.removeAllRanges(); s.addRange(r); } else caretEnd(t);
+      } else caretEnd($('[contenteditable=true]', el));
+    } else if (blankField(field)) (d ? $('[data-nodrag] input,[data-nodrag] textarea', el) : field)?.focus();
   };
   track(mv, up);
 }
@@ -165,13 +208,18 @@ export function dragMove(d, ev) {
     d.tkey = key;
   }
   if (t?.type === 'col') {
+    const colIt = S.items[t.id], row = colIt.data.dir === 'row';
     const body = $('.col-body', els.get(t.id));
     const kids = [...body.children].filter(c => c.classList.contains('card'));
-    let idx = kids.findIndex(k => { const r = k.getBoundingClientRect(); return ev.clientY < r.top + r.height / 2; });
+    let idx = row
+      ? kids.findIndex(k => { const r = k.getBoundingClientRect(); return ev.clientX < r.left + r.width / 2; })
+      : kids.findIndex(k => { const r = k.getBoundingClientRect(); return ev.clientY < r.top + r.height / 2; });
     if (idx < 0) idx = kids.length;
     t.idx = idx;
     if (idx !== d.phIdx) {         // the cards around the gap make room
       const room = snap(kids), fresh = !d.ph.isConnected;
+      if (row) { d.ph.style.width = Math.min(240, Math.max(80, d.list[0]?.w || 160)) + 'px'; d.ph.style.height = ''; }
+      else { d.ph.style.height = Math.min(120, Math.max(40, d.list[0]?.h || 60)) + 'px'; d.ph.style.width = ''; }
       body.insertBefore(d.ph, kids[idx] || null); body.classList.add('has-ph'); d.phIdx = idx;
       if (fresh) open(d.ph);
       glide(room);
@@ -196,8 +244,9 @@ export function dragEnd(d) {
   let refused = false;
   if (to && ((to !== '__unsorted' && !S.boards[to]) || !can(to, 'editor'))) { toast('You can’t add cards to that board'); to = null; t = null; refused = true; }
   if (t?.type === 'col') {
+    const row = S.items[t.id].data.dir === 'row';
     const kids = childrenOf(t.id).filter(k => !d.ids.has(k.id));
-    const moving = d.list.map(o => S.items[o.id]).sort((a, b) => a.y - b.y);
+    const moving = d.list.map(o => S.items[o.id]).sort((a, b) => row ? a.x - b.x : a.y - b.y);
     kids.splice(t.idx, 0, ...moving);
     kids.forEach((k, i) => { k.col = t.id; k.order = i; });
   }

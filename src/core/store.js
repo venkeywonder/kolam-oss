@@ -32,22 +32,23 @@ export const setSPACE = v => (SPACE = v);
 export const setACC = v => (ACC = v);
 export let docOpen = null;         // id of the document card open in the editor (presence: "X is editing")
 export const setDocOpen = v => (docOpen = v);
-export const isPersonal = () => !VIEW && !!user && SPACE === user.space;
+/** Viewing your home workspace (the one you own that has your Unsorted inbox). */
+export const isHome = () => !VIEW && !!user && SPACE === user.space;
 const RANK = { viewer: 1, commenter: 2, editor: 3, owner: 4 };
 export function roleOf(b = cur) {
   if (VIEW) return 'viewer';
-  if (b === '__unsorted') return isPersonal() ? 'owner' : null;
+  if (b === '__unsorted') return isHome() ? 'owner' : null;
   let r = ACC?.boards?.[b], n = 0;
   // a board created moments ago isn't in the server's list yet: it has its parent's role
   while (r === undefined && S?.boards[b] && n++ < 100) { b = S.boards[b].parent; r = ACC?.boards?.[b]; }
-  return r ?? (isPersonal() ? 'owner' : null);
+  return r ?? (isHome() ? 'owner' : null);
 }
 export const can = (b = cur, need = 'editor') => (RANK[roleOf(b)] || 0) >= RANK[need];
 export function updateRO() {
   RO = !can(cur, 'editor');
   document.body.classList.toggle('viewonly', RO);
   document.body.classList.toggle('can-comment', RO && !VIEW && can(cur, 'commenter'));
-  document.body.classList.toggle('shared-space', !VIEW && !isPersonal());
+  document.body.classList.toggle('shared-space', !VIEW && !isHome());
   if (!VIEW) { const p = $('#viewPill'); p.hidden = !RO; p.textContent = can(cur, 'commenter') ? 'Can comment' : 'View only'; }
 }
 /** URL hash for a board in the space being shown. */

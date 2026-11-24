@@ -36,6 +36,7 @@ import { googleError, showAuth, showReset } from './ui/auth.js';
 import { LINK, ROOT, S, VIEW, load, parseHash, save, setCur, setROOT, setS, setSPACE } from './core/store.js';
 import { setUser, sharedState } from './core/sync.js';
 import { loadStyles } from './core/styles.js';
+import { loadFavorites } from './ui/favorites.js';
 import { joinLanding, openLink, openReportDialog } from './features/links.js';
 import { render } from './canvas/render.js';
 import { setLink } from './actions/create.js';
@@ -145,6 +146,7 @@ init_ui_notify();
     }
     setUser(me.user);
     loadStyles(me.user.styles);
+    loadFavorites(me.user.favorites);
     paintAvatar();
     refreshHelp();
     init_verify_banner(me.user, me.config);
@@ -153,12 +155,12 @@ init_ui_notify();
     trackAppEvents();
     if (restored) toast('Welcome back. Your account will not be deleted.');
     addEventListener('nk:signedout', () => location.reload(), { once: true });
-    // which space to open: the one in the link, or your own boards (the web clipper always saves to your own)
+    // which space to open: the one in the link, or your home workspace (the web clipper always saves there)
     const h = parseHash();
     setSPACE(!q.get('clip') && h?.space ? h.space : me.user.space);
     let err = null;
     try { await load(); } catch (e) { err = e; }
-    if (err?.status === 404 && h?.space) {   // a shared board you can't open any more: show your own boards
+    if (err?.status === 404 && h?.space) {   // a shared board you can't open any more: show your home workspace
       toast('You don’t have access to that board');
       setSPACE(me.user.space);
       history.replaceState(null, '', location.pathname + location.search);
@@ -190,6 +192,7 @@ init_ui_notify();
       history.replaceState(null, '', location.pathname + location.hash);
       setPanel('unsorted'); renderPanel();
       toast('Saved to Unsorted');
+      localStorage.setItem('nk:clipped', '1');
       setLink(it.id, clipUrl).then(() => { renderPanel(); if (window.opener) setTimeout(() => window.close(), 1800); });
     }
   }

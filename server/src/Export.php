@@ -4,10 +4,9 @@ declare(strict_types=1);
 namespace Kolam;
 
 /**
- * "Download all my data": a ZIP with one folder per space the person owns, admins or is a member of (personal boards
- * and workspaces), each with a JSON file the app can import back (the same shape as the in-app backup), a Markdown
- * file per board, and the files uploaded there. Boards shared with them individually (not a whole workspace) go
- * under shared/ as Markdown and files only.
+ * "Download all my data": a ZIP with one folder per workspace the person belongs to, each with a JSON file the app can
+ * import back (the same shape as the in-app backup), a Markdown file per board, and the files uploaded there.
+ * In a workspace where they're a guest, only the boards shared with them.
  */
 final class Export
 {
@@ -25,10 +24,13 @@ final class Export
         $zip->addFromString('README.txt', self::readme());
 
         $used = [];
-        self::addSpace($zip, self::uniqueName('My boards', $used), $ctx['personal']['id']);
-        foreach ($ctx['workspaces'] as $w) self::addSpace($zip, self::uniqueName($w['name'], $used), $w['id']);
-        foreach ($ctx['shared'] as $sh) {
-            self::addSharedBoard($zip, 'shared/' . self::uniqueName($sh['title'], $used), $sh['space'], $sh['board']);
+        foreach ($ctx['workspaces'] as $w) {
+            if ($w['role'] !== 'guest') { self::addSpace($zip, self::uniqueName($w['name'], $used), $w['id'], $w['role'] === 'owner'); continue; }
+            // a guest has only the boards shared with them
+            foreach (Access::roots(Access::boards($u['id'], Access::space($w['id'])), $w['id']) as $b) {
+                $title = Spaces::titles($w['id'], [$b])[$b] ?? 'Untitled board';
+                self::addSharedBoard($zip, 'shared/' . self::uniqueName($title, $used), $w['id'], $b);
+            }
         }
         $zip->close();
 
@@ -44,13 +46,13 @@ final class Export
     private static function readme(): string
     {
         return "Kolam data export\n==================\n\n"
-             . "Each top-level folder is one of your spaces (your own boards, or a workspace).\n\n"
+             . "Each top-level folder is one of your workspaces.\n\n"
              . "  data.json    the whole space, in the format Kolam's own \"Back up everything\" uses. Import it from\n"
              . "               the account menu while viewing that space to restore it (or load it into a fresh Kolam).\n"
              . "  boards/      one Markdown file per board, for reading without Kolam.\n"
              . "  files/       every file you uploaded there, named \"<id>-<original name>\".\n\n"
-             . "The \"shared\" folder has one subfolder per board someone shared with you individually (not a whole\n"
-             . "workspace): a Markdown file and its files, since you don't have the rest of that space to export.\n";
+             . "The \"shared\" folder has one subfolder per board shared with you in a workspace you're a guest in:\n"
+             . "a Markdown file and its files, since you don't have the rest of that workspace to export.\n";
     }
 
     private static function uniqueName(string $name, array &$used): string
@@ -68,10 +70,11 @@ final class Export
         return trim(preg_replace('/\s+/u', ' ', $s) ?? '');
     }
 
-    /** A whole space: data.json (re-importable), boards/*.md, files/*. */
-    private static function addSpace(\ZipArchive $zip, string $folder, string $spaceId): void
+    /** A whole space: data.json (re-importable), boards/*.md, files/*. Its Unsorted inbox only for the owner ($inbox). */
+    private static function addSpace(\ZipArchive $zip, string $folder, string $spaceId, bool $inbox): void
     {
         [$boards, $items, $lines, $trash] = self::entities($spaceId);
+        if (!$inbox) $items = array_filter($items, fn($it) => ($it['board'] ?? '') !== Access::UNSORTED);
         $state = ['boards' => (object) $boards, 'items' => (object) $items, 'lines' => (object) $lines, 'trash' => $trash];
         $assets = self::assetsOf($items);
         $zip->addFromString("$folder/data.json", json_encode([

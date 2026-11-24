@@ -14,6 +14,8 @@
 .t-sketch canvas{border-radius:var(--r,2px)}
 .card:active{cursor:grabbing}
 .card.locked,.card.editing{cursor:default}
+/* a card waiting for its first words, and a new link's empty address box, still move by drag (drag.js pressMove) */
+.card.editing.untyped:not(.t-sketch),.card.editing.untyped [contenteditable=true]:empty,.lk-input:placeholder-shown:not(:focus){cursor:grab}
 .card:hover{box-shadow:var(--shadow-hover)}
 .card.dark{color:#f3f3f5}
 .card.selected,.card.editing{box-shadow:0 0 0 2px var(--select),var(--shadow-hover)}
@@ -247,6 +249,13 @@ li:hover .due-add{opacity:1}
 .col-body.has-ph .col-empty{display:none}
 .col-ph{border-radius:3px;margin-bottom:7px;background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 55%,transparent);animation:phGlow 1.2s ease-in-out infinite}
 @keyframes phGlow{50%{background:color-mix(in srgb,var(--accent) 7%,transparent)}}
+/* horizontal column (it.data.dir='row'): cards sit in a row and the column's width shrink-wraps them */
+.t-column.col-row{width:auto!important}
+.t-column.col-row:not(.in-col){display:block}
+.t-column.col-row .col-body{display:flex;flex-direction:row;align-items:flex-start;gap:7px;min-width:200px;padding-bottom:7px}
+.t-column.col-row .card.in-col{width:240px!important;margin-bottom:0}
+.t-column.col-row .col-empty{flex:1;margin-bottom:0}
+.t-column.col-row .col-ph{width:240px;height:auto!important;align-self:stretch;margin-bottom:0}
 .t-column [contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text}
 /* comment */
 .t-comment{padding:14px 16px;border-top:3px solid #f2b136}

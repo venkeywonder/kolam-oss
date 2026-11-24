@@ -31,6 +31,8 @@ import { originalOf, shortcutTo, showOriginal } from '../features/shortcuts.js';
 import { FONTS, fillOf, inkOf, mountTextPop, sizeOf, textItems, textPopHtml } from '../cards/text.js';
 import { pickIconFor } from './menus.js';
 import { groupAround, setGroupBorder } from '../cards/group.js';
+import { setColumnDir } from '../cards/types.js';
+import { favDragOver, favDragStart, favDrop, init as initFavorites } from './favorites.js';
 
 export const TOOLS = [
   ['text', 'Text'], ['note', 'Note'], ['link', 'Link'], ['todo', 'To-do'], ['line', 'Line'], ['icon', 'Icon'], ['group', 'Group'], ['board', 'Board'], ['shortcut', 'Shortcut'], ['column', 'Column'],
@@ -82,6 +84,7 @@ export function renderCtxTools() {
     if (one?.type === 'doc') h += btn('data-act="opendoc" title="Open document"', glyph('open'), 'Open');
     if ((one?.type === 'icon' || one?.type === 'group') && !one.locked) h += btn(`data-act="logo" title="${one.type === 'icon' ? 'Change icon' : 'Icon by the group’s name'}"`, glyph('logo'), 'Icon');
     if (one?.type === 'group' && !one.locked) h += btn(`data-act="gborder" title="${one.data.solid ? 'Dashed border' : 'Solid border'}"`, glyph('group'), one.data.solid ? 'Dashed' : 'Solid');
+    if (one?.type === 'column' && !one.locked) h += btn(`data-act="coldir" title="${one.data.dir === 'row' ? 'Arrange vertically' : 'Arrange horizontally'}"`, glyph('column'), one.data.dir === 'row' ? 'Vertical' : 'Horizontal');
     if (sel.size > 1) h += btn('data-act="group" title="Draw a group around these"', glyph('group'), 'Group');
     if (one && TYPES[one.type].edit && !one.locked) h += btn('data-act="edit" title="Edit (Enter)"', glyph(one.type === 'sketch' ? 'sketch' : 'edit'), one.type === 'sketch' ? 'Draw' : 'Edit');
     const texts = [...sel].map(id => S.items[id]).filter(Boolean);
@@ -166,12 +169,11 @@ function openLinePop(anchor, act) {
   });
 }
 
-/* ---------- dragging a new card out of the toolbar ---------- */
+/* ---------- dragging a new card out of the toolbar or the favorites bar (and tools onto / off that bar) ---------- */
 function toolDown(e) {
-  const b = e.target.closest('.tool'); if (!b || e.button !== 0) return;
+  const b = e.target.closest('.tool[data-tool]'); if (!b || e.button !== 0) return;
   e.preventDefault();
-  const tool = b.dataset.tool;
-  if (tool === 'draw') return createFromTool('draw');
+  const tool = b.dataset.tool, fromFav = !!b.closest('#favBar');
   const sx = e.clientX, sy = e.clientY;
   let ghost = null, colT = null, raf = 0, last = null, sw = null, ang = 0;
   b.classList.add('pressed');
@@ -179,6 +181,11 @@ function toolDown(e) {
   const frame = () => {
     raf = 0; const ev = last;
     place();
+    // over the favorites bar or its remove zone: no card target underneath
+    const fav = favDragOver(ev);
+    ghost.classList.toggle('adding', !fromFav && fav === 'bar');
+    ghost.classList.toggle('removing', fav === 'zone');
+    if (fav) { $$('.drop-target').forEach(x => x.classList.remove('drop-target')); colT = null; return; }
     ghost.hidden = true;
     const t = findDropTarget(ev.clientX, ev.clientY, new Set(), ['column', 'line', 'icon', 'group'].includes(tool));
     ghost.hidden = false;
@@ -195,10 +202,12 @@ function toolDown(e) {
     if (!ghost) {
       if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
       ghost = document.createElement('div'); ghost.className = 'tool-ghost t-' + tool;
-      ghost.innerHTML = `${tile(tool)}<span>${esc(TOOLS.find(t => t[0] === tool)?.[1] || '')}</span>`;
+      // the outer element only moves; the card look (and any scale or fade) is on .tg-in, so those pivot on its centre
+      ghost.innerHTML = `<div class="tg-in">${tile(tool)}<span>${esc(TOOLS.find(t => t[0] === tool)?.[1] || '')}</span></div>`;
       document.body.appendChild(ghost);
       document.body.classList.add('grabbing');
       sw = sway(a => { ang = a; if (last) place(); }, .8);
+      favDragStart(tool, fromFav ? b : null);
     }
     sw.move(ev.clientX);
     last = ev; if (!raf) raf = requestAnimationFrame(frame);
@@ -210,9 +219,14 @@ function toolDown(e) {
     $$('.drop-target').forEach(x => x.classList.remove('drop-target'));
     if (!ghost) return createFromTool(tool);
     sw.stop();
+    if (favDrop(ev, ghost)) return;
     const cr = canvas.getBoundingClientRect();
-    // let go off the board: the new card goes back into its button
-    if (ev.clientX < cr.left || ev.clientY < cr.top) return goHome(ghost, b, { scale: .3 });
+    // let go off the board (or drew the pen): the ghost goes back into its button. Its inner card flies, so the
+    // shrink pivots on its own centre; the empty outer is removed once that's done.
+    if (tool === 'draw' || ev.clientX < cr.left || ev.clientY < cr.top) {
+      goHome(ghost.firstElementChild, b, { scale: .3 });
+      return setTimeout(() => ghost.remove(), 400);
+    }
     ghost.remove();
     const p = toWorld(ev.clientX, ev.clientY);
     const w = TYPES[tool]?.w || 260;
@@ -238,6 +252,7 @@ function ctxClick(e) {
     case 'icon': { const r = b.getBoundingClientRect(); showIconPicker(one.id, r.right + 8, r.top); break; }
     case 'logo': { const r = b.getBoundingClientRect(); pickIconFor(one, r.right + 8, r.top); break; }
     case 'gborder': setGroupBorder([one.id], !one.data.solid); renderCtxTools(); break;
+    case 'coldir': setColumnDir([one.id], one.data.dir === 'row' ? 'col' : 'row'); renderCtxTools(); break;
     case 'group': groupAround(sel); break;
     case 'openlink': window.open(one.data.url, '_blank', 'noopener'); break;
     case 'edit': startEdit(one.id); break;
@@ -252,9 +267,11 @@ function ctxClick(e) {
 }
 
 export function init() {
+  const toolTitle = t => (t[0] === 'draw' ? 'Draw freehand on the board' : `${t[1]}: click, or drag onto the board`) + '. Drag it onto the bar at the bottom to make it a favorite.';
   tools.innerHTML = TOOLS.map(t => t === '-' ? '<div class="tool-sep"></div>'
-    : btn(`data-tool="${t[0]}" title="${t[0] === 'draw' ? 'Draw freehand on the board' : `${t[1]} — click, or drag onto the board`}"`, tile(t[0]), t[1])).join('') +
+    : btn(`data-tool="${t[0]}" title="${esc(toolTitle(t))}"`, tile(t[0]), t[1])).join('') +
     '<div class="tool-spacer"></div>' + btn('data-panel="trash" title="Trash"', tile('trash'), 'Trash');
+  initFavorites({ tools: TOOLS, button: (t, title) => btn(`data-tool="${t}" title="${esc(title)}"`, tile(t), esc(TOOLS.find(x => x[0] === t)?.[1] || t)), down: toolDown });
   tools.addEventListener('pointerdown', e => {
     const pb = e.target.closest('[data-panel]');
     if (pb) { e.preventDefault(); return togglePanel(pb.dataset.panel); }

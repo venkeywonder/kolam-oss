@@ -68,8 +68,8 @@ final class App
         }
         if ($p === 'auth/me' && $m === 'GET') {
             $u = Auth::user();
-            Http::json(['user' => $u ? Auth::publicUser($u) + ['space' => Spaces::personal($u['id'])['id'], 'styles' => (object) Styles::get($u['id']),
-                                                                'onboarding' => Onboarding::get($u['id'])] : null,
+            Http::json(['user' => $u ? Auth::publicUser($u) + ['space' => Spaces::home($u['id'])['id'], 'styles' => (object) Styles::get($u['id']),
+                                                                'favorites' => Favorites::get($u['id']), 'onboarding' => Onboarding::get($u['id'])] : null,
                         'signup' => Config::get('allow_signup') || !Db::one('SELECT id FROM users LIMIT 1'),
                         'config' => self::publicConfig()]);
         }
@@ -101,6 +101,18 @@ final class App
         if ($p === 'consent' && $m === 'GET') {
             header('Access-Control-Allow-Origin: *');
             Http::json(['required' => Http::consentRequired()]);
+        }
+        // whether this browser is signed in, so the website can offer "My dashboard" instead of "Sign in": only a yes or no,
+        // and only the website (SITE_URL) may read it with the visitor's cookie
+        if ($p === 'site/session' && $m === 'GET') {
+            $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+            if ($origin !== '' && $origin === Config::get('site_url')) {
+                header('Access-Control-Allow-Origin: ' . $origin);
+                header('Access-Control-Allow-Credentials: true');
+            }
+            header('Vary: Origin');
+            header('Cache-Control: no-store');
+            Http::json(['signedIn' => Auth::user() !== null]);
         }
 
         // signed-in routes
@@ -144,6 +156,7 @@ final class App
         if ($p === 'history/item' && $m === 'GET') Http::json(History::versions($u, $space, (string) ($_GET['id'] ?? '')));
         if ($p === 'history/version' && $m === 'GET') Http::json(History::data($u, $space, (string) ($_GET['ref'] ?? '')));
         if ($p === 'assets' && $m === 'POST') { Auth::requireVerified($u); Http::json(Assets::upload($u)); }
+        if ($p === 'assets/size' && $m === 'POST') Http::json(Assets::size($u, (array) (Http::input()['ids'] ?? [])));
         if ($p === 'unfurl' && $m === 'GET') {
             RateLimit::hit('unfurl:' . $u['id'], 120, 600);
             Http::json(Unfurl::fetch((string) ($_GET['url'] ?? '')));
@@ -159,7 +172,7 @@ final class App
 
         // workspaces
         if ($p === 'workspaces' && $m === 'POST') Http::json(Spaces::create($u, Http::input()));
-        if (preg_match('~^workspaces/(w_[a-f0-9]{16})(?:/(.+))?$~', $p, $mm)) {
+        if (preg_match('~^workspaces/(w_[a-f0-9]{16}|u_[a-f0-9]{20})(?:/(.+))?$~', $p, $mm)) {
             [$id, $rest] = [$mm[1], $mm[2] ?? ''];
             if ($rest === '' && $m === 'GET') Http::json(Spaces::info($u, $id));
             if ($rest === '' && $m === 'PATCH') Http::json(Spaces::rename($u, $id, Http::input()));

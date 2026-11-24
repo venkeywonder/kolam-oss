@@ -50,7 +50,7 @@ export function renderBoard() {
   itemsLayer.appendChild(frag);
   for (const id of [...sel]) if (!S.items[id] || S.items[id].board !== cur) sel.delete(id);
   if (selLine && (!S.lines[selLine] || S.lines[selLine].board !== cur)) setSelLine(null);
-  emptyHint.hidden = tops.length > 0;
+  emptyHint.hidden = tops.length > 0 || Object.values(S.lines).some(ln => ln.board === cur);
   canvas.dataset.bg = S.boards[cur]?.bg || 'dots';
   canvas.dataset.corners = boardCorners(cur);
   updateBadges();

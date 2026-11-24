@@ -6,9 +6,8 @@ namespace Kolam;
 /**
  * Who can do what on which board.
  *
- * A space is either one person's own boards ("personal", id = the user's id) or a team workspace ("w_…").
- * - personal space: its owner owns every board.
- * - workspace: the Owner and Admins own every board, Members edit every board, Guests only see boards shared with them.
+ * A space is a workspace: the Owner and Admins own every board, Members edit every board, Guests only see boards shared
+ * with them. Every person owns at least one, their home workspace (Spaces::home).
  * - single boards can be shared with people (board_members). A grant covers the board and the boards inside it,
  *   until an inner board has its own grant for that person (which wins, higher or lower) or is "restricted"
  *   (only people added to it directly, plus the space's owners and members, can open it).
@@ -40,7 +39,6 @@ final class Access
     {
         if (!preg_match('/^[uw]_[a-f0-9]{16,24}$/', $id)) Http::fail(404, 'Not found');
         $s = Db::one('SELECT * FROM spaces WHERE id = ?', [$id]);
-        if (!$s && str_starts_with($id, 'u_') && Db::one('SELECT id FROM users WHERE id = ?', [$id])) $s = Spaces::personal($id);
         if (!$s || $s['deleted_at'] !== null) Http::fail(404, 'Not found');
         return $s;
     }
@@ -48,7 +46,6 @@ final class Access
     /** owner | admin | member | guest | null — the person's place in the space as a whole. */
     public static function spaceRole(string $uid, array $space): ?string
     {
-        if ($space['kind'] === 'personal') return $space['owner_id'] === $uid ? 'owner' : null;
         $r = Db::one('SELECT role FROM space_members WHERE space_id = ? AND user_id = ? AND left_at IS NULL', [$space['id'], $uid]);
         return $r['role'] ?? null;
     }
@@ -92,7 +89,7 @@ final class Access
 
     /**
      * Every board this person can open in the space: board id => role.
-     * '__unsorted' (the personal inbox) is included for the personal space's owner only.
+     * '__unsorted' (the owner's inbox) is included for the space's owner only.
      */
     public static function boards(string $uid, array $space): array
     {
@@ -102,7 +99,7 @@ final class Access
         $all = self::blanket(self::spaceRole($uid, $space));
         if ($all !== null) {
             $out = array_fill_keys(array_keys($tree), $all);
-            if ($space['kind'] === 'personal') $out[self::UNSORTED] = 'owner';
+            if ($space['owner_id'] === $uid) $out[self::UNSORTED] = 'owner';
             return self::$cache[$k] = $out;
         }
         return self::$cache[$k] = self::resolve($tree, self::grants($space['id'])[$uid] ?? [], self::restricted($space['id']));
@@ -161,8 +158,7 @@ final class Access
     public static function audience(array $space): array
     {
         $tree = self::tree($space['id']);
-        $full = $space['kind'] === 'personal' ? [$space['owner_id']]
-            : array_column(Db::q('SELECT user_id FROM space_members WHERE space_id = ? AND left_at IS NULL AND role <> ?', [$space['id'], 'guest'])->fetchAll(), 'user_id');
+        $full = array_column(Db::q('SELECT user_id FROM space_members WHERE space_id = ? AND left_at IS NULL AND role <> ?', [$space['id'], 'guest'])->fetchAll(), 'user_id');
         $aud = array_fill_keys(array_keys($tree), $full);
         $restricted = self::restricted($space['id']);
         foreach (self::grants($space['id']) as $uid => $g) {
@@ -175,8 +171,7 @@ final class Access
     /** Everyone with any access to the space's boards (full members and people with board grants). */
     public static function people(array $space): array
     {
-        $ids = $space['kind'] === 'personal' ? [$space['owner_id']]
-            : array_column(Db::q('SELECT user_id FROM space_members WHERE space_id = ? AND left_at IS NULL', [$space['id']])->fetchAll(), 'user_id');
+        $ids = array_column(Db::q('SELECT user_id FROM space_members WHERE space_id = ? AND left_at IS NULL', [$space['id']])->fetchAll(), 'user_id');
         $ids = array_values(array_unique(array_merge($ids, array_keys(self::grants($space['id'])))));
         return self::names($ids);
     }

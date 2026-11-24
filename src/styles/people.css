@@ -7,7 +7,11 @@
 #spaceBtn+#crumbs{border-left:1px solid var(--line);padding-left:4px}
 .sp-badge{position:absolute;top:-3px;right:-5px;min-width:16px;height:16px;border-radius:8px;background:var(--accent);color:#fff;font:700 10px/16px var(--font);font-style:normal;text-align:center;padding:0 4px}
 
-.sp-list{display:flex;flex-direction:column;gap:2px;background:var(--panel)}
+#spacePop{position:fixed;z-index:60;width:320px;max-height:min(560px,calc(100vh - var(--head) - 20px));overflow:auto;background:var(--menu);border-radius:12px;box-shadow:var(--shadow-pop);padding:6px;animation:pop .14s var(--ease);transform-origin:top left}
+#spacePop .pp-sec{display:flex;align-items:center;padding:8px 8px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+#spacePop .pp-sec:first-child{padding-top:4px}
+.sp-list{display:flex;flex-direction:column;gap:2px}
+.sp-check{margin-left:auto;color:var(--accent);display:grid;flex:none}
 .sp-row{display:flex;align-items:center;border-radius:8px}
 .sp-row:hover,.sp-row.on{background:var(--hover)}
 .sp-row.on .sp-t b{color:var(--ink)}
@@ -35,10 +39,12 @@
 .pp-name:hover{border-color:var(--line)}
 .pp-name:focus{border-color:var(--ink);background:var(--field)}
 .pp-lead{font-size:13.5px}
+.pp-note{font-size:12.5px;color:var(--muted)}
 .pp-invite{display:flex;gap:8px;margin:4px 0 6px}
 .pp-invite .field{flex:1}
-.pp-role{height:36px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);padding:0 8px;font:inherit;font-size:13px}
-.pp-row .pp-role{height:30px}
+.pp-role{height:36px;border:1px solid var(--line);border-radius:8px;background-color:var(--field);color:var(--ink);padding-left:11px;font:inherit;font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s,background-color .15s}
+.pp-role:focus-visible{border-color:var(--ink);box-shadow:0 0 0 3px var(--select-soft)}
+.pp-row .pp-role{height:30px;padding-left:10px}
 .pp-sent{background:var(--hover);border-radius:10px;padding:10px 12px;margin:8px 0}
 .pp-sent p{margin:0 0 8px;font-size:13px}
 .pp-sec{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 0 4px;display:flex;align-items:center}

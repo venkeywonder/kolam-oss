@@ -64,7 +64,8 @@
 .tp-row button{display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;padding:6px 0 4px;border-radius:8px;color:var(--ink-2);font-size:10px;line-height:11px;transition:background .1s}
 .tp-row button:hover{background:var(--hover);color:var(--ink)}
 .tp-row button.on{background:var(--ink);color:var(--panel)}
-.tool-ghost{position:fixed;left:0;top:0;z-index:200;pointer-events:none;background:var(--card);box-shadow:var(--shadow-lift);padding:10px 14px 10px 10px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;will-change:transform;animation:lift .15s var(--ease)}
+.tool-ghost{position:fixed;left:0;top:0;z-index:200;pointer-events:none;will-change:transform}
+.tg-in{background:var(--card);box-shadow:var(--shadow-lift);padding:10px 14px 10px 10px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;white-space:nowrap;animation:lift .15s var(--ease);transition:box-shadow .15s,opacity .15s}
 @keyframes lift{from{opacity:.4;scale:.9}}
 .tool[data-tool]:not([data-tool=draw]){cursor:grab}
 .tool[data-tool]:not([data-tool=draw]):active{cursor:grabbing}

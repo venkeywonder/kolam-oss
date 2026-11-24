@@ -3,10 +3,12 @@
 @import url('./base.css');
 @import url('./header.css');
 @import url('./toolbar.css');
+@import url('./favorites.css');
 @import url('./canvas.css');
 @import url('./cards.css');
 @import url('./menus.css');
 @import url('./panels.css');
+@import url('./clipper.css');
 @import url('./people.css');
 @import url('./comments.css');
 @import url('./history.css');

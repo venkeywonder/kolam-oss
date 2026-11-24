@@ -7,8 +7,63 @@ import { TYPES } from '../cards/types.js';
 import { render } from '../canvas/render.js';
 import { exitEdit } from '../canvas/editing.js';
 import { closeModal, openModal } from '../ui/modal.js';
+// shared with TemplateTools.php: the data (name/desc/colour/cards) lives in templates.json, this file only adds the
+// thumbnail SVGs and interprets the build steps. Fetched in the background so the app never waits for it.
+const TEMPLATES = [];
+const loaded = fetch(new URL('../templates.json', import.meta.url)).then(r => r.json()).then(list => {
+  TEMPLATES.push(...list.map(t => ({
+    id: t.id, name: t.name, desc: t.desc, c: t.color,
+    art(c) { return ART[t.id](c); },
+    build(k) { runBuild(t.build, k); },
+  })));
+});
 
 /* ================= templates ================= */
+
+const ART = {
+  mood: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><rect x="6" y="9" width="44" height="34" rx="4" fill="${c}" opacity=".15" stroke="${c}" stroke-width="2"/><path d="M12 36 L24 22 L33 32 L40 24 L46 36 Z" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/><circle cx="40" cy="16" r="3" fill="${c}"/><rect x="54" y="9" width="26" height="34" rx="4" fill="var(--muted)" opacity=".18"/><rect x="6" y="49" width="60" height="4" rx="2" fill="var(--muted)" opacity=".5"/><rect x="6" y="57" width="42" height="4" rx="2" fill="var(--muted)" opacity=".35"/><circle cx="92" cy="18" r="7" fill="#264653"/><circle cx="108" cy="18" r="7" fill="#2a9d8f"/><circle cx="92" cy="34" r="7" fill="#e9c46a"/><circle cx="108" cy="34" r="7" fill="#f4a261"/>`,
+  kanban: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><rect x="6" y="9" width="24" height="58" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="9" y="15" width="18" height="10" rx="2" fill="var(--muted)" opacity=".32"/><rect x="9" y="29" width="18" height="10" rx="2" fill="var(--muted)" opacity=".18"/><rect x="33" y="9" width="24" height="58" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="36" y="15" width="18" height="10" rx="2" fill="var(--muted)" opacity=".3"/><rect x="60" y="9" width="24" height="58" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="63" y="15" width="18" height="10" rx="2" fill="var(--muted)" opacity=".18"/><rect x="87" y="9" width="24" height="58" rx="3" fill="none" stroke="${c}" stroke-width="2"/><rect x="90" y="15" width="18" height="10" rx="2" fill="${c}" opacity=".32"/>`,
+  mind: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><line x1="60" y1="38" x2="60" y2="11" stroke="${c}" stroke-width="1.5" opacity=".55"/><line x1="60" y1="38" x2="83" y2="24" stroke="${c}" stroke-width="1.5" opacity=".55"/><line x1="60" y1="38" x2="83" y2="52" stroke="${c}" stroke-width="1.5" opacity=".55"/><line x1="60" y1="38" x2="60" y2="65" stroke="${c}" stroke-width="1.5" opacity=".55"/><line x1="60" y1="38" x2="37" y2="52" stroke="${c}" stroke-width="1.5" opacity=".55"/><line x1="60" y1="38" x2="37" y2="24" stroke="${c}" stroke-width="1.5" opacity=".55"/><circle cx="60" cy="11" r="5" fill="var(--muted)" opacity=".55"/><circle cx="83" cy="24" r="5" fill="var(--muted)" opacity=".55"/><circle cx="83" cy="52" r="5" fill="var(--muted)" opacity=".55"/><circle cx="60" cy="65" r="5" fill="var(--muted)" opacity=".55"/><circle cx="37" cy="52" r="5" fill="var(--muted)" opacity=".55"/><circle cx="37" cy="24" r="5" fill="var(--muted)" opacity=".55"/><circle cx="60" cy="38" r="11" fill="${c}"/>`,
+  story: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><rect x="6" y="10" width="24" height="34" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><path d="M10 38 L18 26 L24 34 L28 28 L30 38 Z" fill="${c}" opacity=".3"/><rect x="6" y="48" width="20" height="3" rx="1.5" fill="var(--muted)" opacity=".5"/><rect x="33" y="10" width="24" height="34" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><path d="M37 38 L45 26 L51 34 L55 28 L57 38 Z" fill="${c}" opacity=".3"/><rect x="33" y="48" width="20" height="3" rx="1.5" fill="var(--muted)" opacity=".5"/><rect x="60" y="10" width="24" height="34" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><path d="M64 38 L72 26 L78 34 L82 28 L84 38 Z" fill="${c}" opacity=".3"/><rect x="60" y="48" width="20" height="3" rx="1.5" fill="var(--muted)" opacity=".5"/><rect x="87" y="10" width="24" height="34" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><path d="M91 38 L99 26 L105 34 L109 28 L111 38 Z" fill="${c}" opacity=".3"/><rect x="87" y="48" width="20" height="3" rx="1.5" fill="var(--muted)" opacity=".5"/><path d="M30 27 L33 27" stroke="${c}" stroke-width="2"/><path d="M57 27 L60 27" stroke="${c}" stroke-width="2"/><path d="M84 27 L87 27" stroke="${c}" stroke-width="2"/>`,
+  brain: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><rect x="6" y="9" width="108" height="13" rx="3" fill="${c}" opacity=".15" stroke="${c}" stroke-width="1.5"/><rect x="6" y="28" width="33" height="26" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="43" y="28" width="33" height="26" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="80" y="28" width="33" height="26" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="9" y="33" width="27" height="6" rx="2" fill="var(--muted)" opacity=".4"/><rect x="46" y="33" width="27" height="6" rx="2" fill="var(--muted)" opacity=".4"/><rect x="83" y="33" width="27" height="6" rx="2" fill="var(--muted)" opacity=".4"/><rect x="6" y="60" width="9" height="9" rx="2" fill="none" stroke="${c}" stroke-width="1.5"/><rect x="33" y="60" width="9" height="9" rx="2" fill="none" stroke="${c}" stroke-width="1.5"/><rect x="60" y="60" width="9" height="9" rx="2" fill="none" stroke="${c}" stroke-width="1.5"/>`,
+  week: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><rect x="6" y="9" width="28" height="58" rx="3" fill="${c}" opacity=".12" stroke="${c}" stroke-width="2"/><rect x="9" y="15" width="22" height="4" rx="2" fill="${c}" opacity=".55"/><rect x="9" y="23" width="22" height="4" rx="2" fill="${c}" opacity=".4"/><rect x="9" y="31" width="22" height="4" rx="2" fill="${c}" opacity=".3"/>${[0, 1, 2, 3, 4, 5].map(i => `<rect x="${38 + i * 13}" y="9" width="11" height="58" rx="2" fill="none" stroke="var(--line)" stroke-width="1.5"/><rect x="${40 + i * 13}" y="15" width="7" height="6" rx="1.5" fill="var(--muted)" opacity=".4"/>`).join('')}`,
+  meeting: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><rect x="6" y="9" width="26" height="58" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="9" y="15" width="20" height="4" rx="2" fill="var(--muted)" opacity=".45"/><rect x="9" y="24" width="20" height="4" rx="2" fill="var(--muted)" opacity=".35"/><rect x="9" y="33" width="20" height="4" rx="2" fill="var(--muted)" opacity=".3"/><rect x="36" y="9" width="36" height="58" rx="3" fill="var(--muted)" opacity=".08" stroke="var(--line)" stroke-width="2"/><rect x="40" y="15" width="28" height="4" rx="2" fill="var(--muted)" opacity=".4"/><rect x="40" y="23" width="22" height="4" rx="2" fill="var(--muted)" opacity=".3"/><rect x="40" y="31" width="25" height="4" rx="2" fill="var(--muted)" opacity=".3"/><rect x="76" y="9" width="38" height="26" rx="3" fill="${c}" opacity=".15" stroke="${c}" stroke-width="2"/><rect x="80" y="15" width="28" height="4" rx="2" fill="${c}" opacity=".6"/><rect x="80" y="23" width="20" height="4" rx="2" fill="${c}" opacity=".5"/><rect x="76" y="39" width="38" height="28" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="80" y="45" width="7" height="7" rx="1.5" fill="none" stroke="${c}" stroke-width="1.5"/><rect x="90" y="47" width="18" height="4" rx="2" fill="var(--muted)" opacity=".4"/><rect x="80" y="56" width="7" height="7" rx="1.5" fill="none" stroke="${c}" stroke-width="1.5"/><rect x="90" y="58" width="18" height="4" rx="2" fill="var(--muted)" opacity=".4"/>`,
+  research: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><rect x="6" y="9" width="33" height="42" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="43" y="9" width="33" height="42" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="80" y="9" width="33" height="42" rx="3" fill="${c}" opacity=".12" stroke="${c}" stroke-width="2"/><rect x="9" y="14" width="27" height="5" rx="2" fill="var(--muted)" opacity=".4"/><rect x="9" y="22" width="20" height="5" rx="2" fill="var(--muted)" opacity=".3"/><rect x="46" y="14" width="27" height="5" rx="2" fill="var(--muted)" opacity=".4"/><rect x="46" y="22" width="18" height="5" rx="2" fill="var(--muted)" opacity=".3"/><rect x="83" y="14" width="27" height="5" rx="2" fill="${c}" opacity=".6"/><rect x="83" y="22" width="20" height="5" rx="2" fill="${c}" opacity=".45"/><rect x="6" y="57" width="108" height="12" rx="3" fill="${c}" opacity=".1" stroke="${c}" stroke-width="1.5"/><circle cx="14" cy="63" r="4" fill="none" stroke="${c}" stroke-width="1.5"/><rect x="22" y="61" width="30" height="4" rx="2" fill="var(--muted)" opacity=".5"/><circle cx="64" cy="63" r="4" fill="none" stroke="${c}" stroke-width="1.5"/><rect x="72" y="61" width="30" height="4" rx="2" fill="var(--muted)" opacity=".5"/>`,
+  writing: c => `<rect width="120" height="75" rx="8" fill="var(--field)"/><rect x="6" y="9" width="44" height="58" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="10" y="15" width="26" height="6" rx="2" fill="var(--muted)" opacity=".55"/><rect x="10" y="26" width="36" height="4" rx="2" fill="var(--muted)" opacity=".32"/><rect x="10" y="34" width="36" height="4" rx="2" fill="var(--muted)" opacity=".32"/><rect x="10" y="42" width="24" height="4" rx="2" fill="var(--muted)" opacity=".32"/><rect x="56" y="9" width="28" height="58" rx="3" fill="none" stroke="var(--line)" stroke-width="2"/><rect x="60" y="15" width="20" height="4" rx="2" fill="var(--muted)" opacity=".4"/><rect x="60" y="24" width="20" height="4" rx="2" fill="var(--muted)" opacity=".4"/><rect x="60" y="33" width="20" height="4" rx="2" fill="var(--muted)" opacity=".4"/><rect x="90" y="9" width="24" height="58" rx="3" fill="${c}" opacity=".14" stroke="${c}" stroke-width="2"/><rect x="94" y="15" width="16" height="4" rx="2" fill="${c}" opacity=".6"/><rect x="94" y="23" width="16" height="4" rx="2" fill="${c}" opacity=".45"/>`,
+};
+
+// one formatted date, substituted into {{date}} in template html (matches the meeting template's old client-side format)
+const tplDate = () => new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** Runs one template's build steps (from templates.json) against a kit of cards already placed at `origin`. */
+function runBuild(steps, k) {
+  const refs = {};
+  let prevCol = null;
+  const fill = s => typeof s === 'string' ? s.replace('{{date}}', tplDate()) : s;
+  for (const s of steps) {
+    const col = s.col === '$prev' ? prevCol : (s.col ? refs[s.col] : null);
+    let made;
+    switch (s.op) {
+      case 'note': made = k.add('note', s.x, s.y, { html: fill(s.html) }, { w: s.w, color: s.color || null }); break;
+      case 'doc': made = k.add('doc', s.x, s.y, { title: s.title, html: fill(s.html) }, { w: s.w, color: s.color || null }); break;
+      case 'swatch': made = k.add('swatch', s.x, s.y, { hex: s.hex }); break;
+      case 'todo': made = k.add('todo', s.x, s.y, { title: s.title, tasks: k.tasks(s.tasks) }, { w: s.w, color: s.color || null }); break;
+      case 'column':
+        made = k.add('column', s.x, s.y, { title: s.title }, { w: s.w, color: s.color || null });
+        prevCol = made;
+        break;
+      case 'inCol': {
+        const data = s.type === 'todo' ? { title: s.title, tasks: k.tasks(s.tasks) } : { html: fill(s.html) };
+        const extra = s.h ? { h: s.h } : {};
+        made = k.inCol(col, s.type, data, extra);
+        break;
+      }
+      case 'line': k.line(refs[s.from], refs[s.to], { arrow: s.arrow !== false, color: s.color || null }); break;
+    }
+    if (s.ref && made) refs[s.ref] = made;
+  }
+}
+
 export function tplKit(origin) {
   let z = maxZ();
   const add = (type, x, y, data = {}, extra = {}) => {
@@ -25,79 +80,8 @@ export function tplKit(origin) {
   const note = (h, p) => `<h2>${h}</h2>${p ? `<p>${p}</p>` : ''}`;
   return { add, inCol, line, tasks, note };
 }
-export const TEMPLATES = [
-  { id: 'mood', name: 'Moodboard', desc: 'Imagery, colours and words that set the tone.', c: '#7b55d9', build(k) {
-    k.add('note', 0, 0, { html: '<h1>Moodboard</h1><p>What feeling should this project leave people with?</p>' }, { w: 320 });
-    const img = k.add('column', 0, 170, { title: 'Imagery' }, { w: 300 });
-    k.inCol(img, 'note', { html: '<p>Drop reference images into this column.</p>' });
-    const words = k.add('column', 330, 170, { title: 'Words' }, { w: 220 });
-    ['Calm', 'Tactile', 'Honest', 'Warm'].forEach(w => k.inCol(words, 'note', { html: `<h2>${w}</h2>` }));
-    ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'].forEach((hex, i) => k.add('swatch', 360 + i * 150, 0, { hex }));
-    k.add('note', 580, 170, { html: '<h2>Typography</h2><p>Headings: a confident serif. Body: a quiet sans.</p>' }, { w: 280 });
-  } },
-  { id: 'kanban', name: 'Project plan', desc: 'Backlog, to do, doing and done columns.', c: '#3478e5', build(k) {
-    k.add('note', 0, 0, { html: '<h1>Project plan</h1><p>Move cards from left to right as work progresses.</p>' }, { w: 380 });
-    [['Backlog', ['Research competitors', 'Collect user quotes']], ['To do', ['Write the brief', 'Sketch first concepts']], ['Doing', ['Kick-off meeting prep']], ['Done', ['Set up this board']]].forEach(([t, cards], i) => {
-      const c = k.add('column', i * 300, 130, { title: t }, { w: 280, color: i === 3 ? 'green' : null });
-      cards.forEach(x => k.inCol(c, 'note', { html: `<p>${x}</p>` }));
-    });
-    k.add('todo', 1200, 130, { title: 'Milestones', tasks: k.tasks(['Brief approved', 'Concepts reviewed', 'Launch']) }, { color: 'yellow' });
-  } },
-  { id: 'mind', name: 'Mind map', desc: 'A central idea branching into topics.', c: '#db4c9a', build(k) {
-    const c = k.add('note', 360, 220, { html: '<h1>Central idea</h1>' }, { w: 240, color: 'pink' });
-    const pts = [[0, 0], [360, -40], [720, 0], [740, 420], [360, 470], [0, 420]];
-    ['Who is it for?', 'Why now?', 'How might it work?', 'Risks', 'What success looks like', 'Open questions'].forEach((t, i) => {
-      const n = k.add('note', pts[i][0], pts[i][1], { html: `<h2>${t}</h2>` }, { w: 220 });
-      k.line(c, n, { arrow: false, color: 'pink' });
-    });
-  } },
-  { id: 'story', name: 'Storyboard', desc: 'Scenes in sequence with shot and audio notes.', c: '#ee8a26', build(k) {
-    k.add('note', 0, 0, { html: '<h1>Storyboard</h1><p>One column per scene. Sketch the frame, then note the shot and sound.</p>' }, { w: 420 });
-    let prev = null;
-    for (let i = 0; i < 4; i++) {
-      const c = k.add('column', i * 320, 130, { title: `Scene ${i + 1}` }, { w: 290 });
-      k.inCol(c, 'sketch', { strokes: [] }, { h: 170 });
-      k.inCol(c, 'note', { html: '<p><b>Shot:</b> </p><p><b>Audio:</b> </p><p><b>Duration:</b> </p>' });
-      if (prev) k.line(prev, c);
-      prev = c;
-    }
-  } },
-  { id: 'brain', name: 'Brainstorm', desc: 'A prompt, idea columns and a shortlist.', c: '#e2b000', build(k) {
-    k.add('note', 0, 0, { html: '<h1>How might we…?</h1><p>Write the challenge here. Quantity first, judgement later.</p>' }, { w: 420, color: 'yellow' });
-    ['Wild ideas', 'Practical ideas', 'Questions'].forEach((t, i) => { const c = k.add('column', i * 300, 170, { title: t }, { w: 280 }); k.inCol(c, 'note', { html: '' }); });
-    k.add('todo', 900, 170, { title: 'Shortlist', tasks: k.tasks(['', '', '']) }, { color: 'green' });
-  } },
-  { id: 'week', name: 'Weekly planner', desc: 'One column per day plus priorities.', c: '#35a35a', build(k) {
-    k.add('todo', 0, 0, { title: 'Top priorities this week', tasks: k.tasks(['', '', '']) }, { w: 300, color: 'yellow' });
-    ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Weekend'].forEach((d, i) => {
-      const c = k.add('column', 330 + i * 270, 0, { title: d }, { w: 250 });
-      k.inCol(c, 'todo', { title: '', tasks: k.tasks(['']) });
-    });
-  } },
-  { id: 'meeting', name: 'Meeting notes', desc: 'Agenda, notes, decisions and actions.', c: '#1a9e93', build(k) {
-    k.add('note', 0, 0, { html: `<h1>Meeting · ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}</h1><p><b>Attendees:</b> </p>` }, { w: 420 });
-    const a = k.add('column', 0, 150, { title: 'Agenda' }, { w: 260 });
-    ['Updates', 'Discussion', 'Next steps'].forEach(x => k.inCol(a, 'note', { html: `<p>${x}</p>` }));
-    k.add('note', 290, 150, { html: '<h2>Notes</h2><p></p>' }, { w: 320 });
-    k.add('note', 640, 150, { html: '<h2>Decisions</h2><ul><li></li></ul>' }, { w: 260, color: 'blue' });
-    k.add('todo', 640, 330, { title: 'Action items', tasks: k.tasks(['', '']) }, { w: 260, color: 'yellow' });
-  } },
-  { id: 'research', name: 'Research', desc: 'Sources, quotes, insights and open questions.', c: '#e5534b', build(k) {
-    k.add('note', 0, 0, { html: '<h1>Research</h1><p>Paste links into Sources. Pull key quotes out, then group them into insights.</p>' }, { w: 420 });
-    [['Sources', 'Paste a link anywhere on the board to add a preview card.'], ['Quotes', '“Add memorable quotes here.”'], ['Insights', 'What patterns are you seeing?']].forEach(([t, p], i) => {
-      const c = k.add('column', i * 300, 150, { title: t }, { w: 280 });
-      k.inCol(c, 'note', { html: `<p>${p}</p>` });
-    });
-    k.add('todo', 900, 150, { title: 'Open questions', tasks: k.tasks(['']) }, { color: 'purple' });
-  } },
-  { id: 'writing', name: 'Writing', desc: 'A document, an outline and a notes column.', c: '#6b5b95', build(k) {
-    k.add('doc', 0, 0, { title: 'Draft', html: '<p>Start writing here.</p>' }, { w: 360 });
-    const outline = k.add('column', 400, 0, { title: 'Outline' }, { w: 260 });
-    ['Introduction', 'Main point', 'Conclusion'].forEach(x => k.inCol(outline, 'note', { html: `<p>${x}</p>` }));
-    k.add('note', 690, 0, { html: '<h2>Notes</h2><p>Stray ideas and references go here.</p>' }, { w: 280, color: 'teal' });
-  } },
-];
-export function applyTemplate(id, at) {
+export async function applyTemplate(id, at) {
+  await loaded;
   const T = TEMPLATES.find(t => t.id === id); if (!T) return;
   exitEdit(); closeModal();
   checkpoint();
@@ -109,19 +93,21 @@ export function applyTemplate(id, at) {
   save(); render();
   if (wasEmpty) fit();
 }
-export function templateGallery(at) {
+export async function templateGallery(at) {
+  await loaded;
   const card = openModal(`<h2>Start from a template</h2><p>Templates add ready-made cards to the current board. You can change everything afterwards.</p><div class="tpl-grid">` +
-    TEMPLATES.map(t => `<button class="tpl" data-tpl="${t.id}"><i style="--c:${t.c}"></i><b>${t.name}</b><span>${t.desc}</span></button>`).join('') + '</div>');
+    TEMPLATES.map(t => `<button class="tpl" data-tpl="${t.id}"><span class="tpl-thumb"><svg viewBox="0 0 120 75" aria-hidden="true">${t.art(t.c)}</svg></span><b>${t.name}</b><span>${t.desc}</span></button>`).join('') + '</div>', { cls: 'tpl-modal' });
   card.addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (b) applyTemplate(b.dataset.tpl, at); });
 }
 
 export function init() {
-  emptyHint.innerHTML = '<strong>This board is empty</strong><span>Drag in a card from the left, drop files from your computer, or double-click anywhere to write a note. Or start from a template:</span>' +
-    `<div class="eh-tpl">${TEMPLATES.slice(0, 6).map(t => `<button data-tpl="${t.id}">${t.name}</button>`).join('')}<button data-tpl-all>More…</button></div>`;
+  loaded.then(() => {
+    emptyHint.innerHTML = '<strong>This board is empty</strong><span>Drag in a card from the left, drop files from your computer, or double-click anywhere to write a note. Or start from a template:</span>' +
+      `<div class="eh-tpl">${TEMPLATES.slice(0, 6).map(t => `<button data-tpl="${t.id}">${t.name}</button>`).join('')}<button data-tpl-all>More…</button></div>`;
+  });
   emptyHint.addEventListener('pointerdown', e => { if (e.target.closest('button')) e.stopPropagation(); });
   emptyHint.addEventListener('click', e => {
     const b = e.target.closest('[data-tpl]'); if (b) return applyTemplate(b.dataset.tpl);
     if (e.target.closest('[data-tpl-all]')) templateGallery();
   });
 }
-

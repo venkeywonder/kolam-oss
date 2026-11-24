@@ -2,12 +2,12 @@ import { $ } from '../core/util.js';
 import { icon } from './icons.js';
 import { PALETTE } from '../core/palette.js';
 import { ctxmenu } from '../core/dom.js';
-import { S, checkpoint, clip, clipText, cur, isPersonal, lastPointer, redoStack, save, sel, selLine, serverOK, setCur, setS, setSelLine, undoStack } from '../core/store.js';
+import { S, checkpoint, clip, clipText, cur, isHome, lastPointer, redoStack, save, sel, selLine, serverOK, setCur, setS, setSelLine, undoStack } from '../core/store.js';
 import { confirmMove } from '../features/spaces.js';
 import { seed } from '../core/seed.js';
 import { fit } from '../canvas/viewport.js';
 import { itemsOf } from '../core/model.js';
-import { TYPES } from '../cards/types.js';
+import { setColumnDir, TYPES } from '../cards/types.js';
 import { render, renderBoard } from '../canvas/render.js';
 import { refreshSel } from '../canvas/selection.js';
 import { startEdit } from '../canvas/editing.js';
@@ -75,6 +75,7 @@ export function showItemMenu(x, y) {
   if (one?.type === 'board') m.push({ label: 'Change icon…', icon: 'board', act: () => showIconPicker(one.id, x, y) });
   if ((one?.type === 'icon' || one?.type === 'group') && !one.locked) m.push({ label: one.type === 'icon' ? 'Change icon…' : one.data.ref || one.data.asset ? 'Change icon…' : 'Add icon…', icon: 'logo', act: () => pickIconFor(one, x, y) });
   if (one?.type === 'group' && !one.locked) m.push({ label: one.data.solid ? 'Dashed border' : 'Solid border', icon: 'group', act: () => setGroupBorder([one.id], !one.data.solid) });
+  if (one?.type === 'column' && !one.locked) m.push({ label: one.data.dir === 'row' ? 'Arrange vertically' : 'Arrange horizontally', icon: 'column', act: () => setColumnDir([one.id], one.data.dir === 'row' ? 'col' : 'row') });
   if ([...sel].some(id => S.items[id] && !S.items[id].col)) m.push({ label: sel.size > 1 ? 'Group these' : 'Put in a group', icon: 'group', act: () => groupAround(sel) });
   if (one?.type === 'board' && S.boards[one.data.target]) m.push({ label: 'Put a shortcut on another board…', icon: 'shortcut', act: () => shortcutTo(one.data.target) });
   if (m.length) m.push('-');
@@ -84,7 +85,7 @@ export function showItemMenu(x, y) {
   const allLocked = [...sel].every(id => S.items[id]?.locked);
   m.push({ label: allLocked ? 'Unlock' : 'Lock position', icon: allLocked ? 'unlock' : 'lock', act: toggleLock });
   m.push({ label: 'Move to board…', icon: 'move', act: moveToDialog });
-  if (isPersonal()) m.push({ label: 'Send to Unsorted', icon: 'inbox', act: async () => {
+  if (isHome()) m.push({ label: 'Send to Unsorted', icon: 'inbox', act: async () => {
     const ids = [...sel];
     if (!await confirmMove(cur, '__unsorted', ids.length)) return;
     checkpoint(); moveToBoard(ids, '__unsorted'); save(); renderBoard(); renderPanel(); toast('Moved to Unsorted');

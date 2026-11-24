@@ -1,9 +1,9 @@
 import { perFrame, track } from '../core/util.js';
 import { canvas, marqueeEl } from '../core/dom.js';
-import { RO, checkpoint, cur, els, freshId, lastPointer, save, sel, selLine, setFreshId, setLastPointer, setSelLine, spaceDown } from '../core/store.js';
+import { RO, checkpoint, cur, editingId, els, freshId, lastPointer, save, sel, selLine, setFreshId, setLastPointer, setSelLine, spaceDown } from '../core/store.js';
 import { V, applyView, itemRect, toWorld, zoomAt } from './viewport.js';
 import { itemsOf } from '../core/model.js';
-import { refreshSel } from './selection.js';
+import { refreshSel, selectOnly } from './selection.js';
 import { exitEdit, startEdit } from './editing.js';
 import { bendDrag, endpointDrag } from './connectors.js';
 import { createItem } from '../actions/create.js';
@@ -21,7 +21,29 @@ export function panStart(e) {
   track(mv, up);
 }
 
+/** A right-click without Ctrl or Alt: on empty board it only pans; Ctrl or Alt (or Ctrl-click on a Mac) opens the board's menu. */
+const plainRightClick = e => e.button === 2 && !e.ctrlKey && !e.altKey;
+
 export function init() {
+  // The right button: on empty board it pans; on a card or a line it selects it, and the contextmenu handlers then
+  // open its options at the pointer.
+  canvas.addEventListener('pointerdown', e => {
+    if (e.button !== 2 || e.ctrlKey || e.altKey) return;
+    e.stopPropagation();
+    hideMenu();
+    if (RO || drawMode) return panStart(e);
+    const card = e.target.closest('.card[data-id]'), g = e.target.closest('g.ln');
+    if (card) {
+      e.preventDefault();
+      const id = card.dataset.id;
+      if (editingId === id) return;
+      exitEdit();
+      if (!sel.has(id)) selectOnly(id);
+      return;
+    }
+    if (g) { e.preventDefault(); exitEdit(); sel.clear(); setSelLine(g.dataset.lid); refreshSel(); return; }
+    panStart(e);
+  }, true);
   canvas.addEventListener('pointerdown', e => {
     hideMenu();
     if (drawMode) return drawDown(e);
@@ -88,6 +110,7 @@ export function init() {
     if (RO || drawMode) return;
     const g = e.target.closest('g.ln');
     if (g) { sel.clear(); setSelLine(g.dataset.lid); refreshSel(); return showLineMenu(e.clientX, e.clientY); }
+    if (plainRightClick(e)) return;
     setLastPointer(toWorld(e.clientX, e.clientY));
     showCanvasMenu(e.clientX, e.clientY);
   });

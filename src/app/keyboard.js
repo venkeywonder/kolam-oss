@@ -54,7 +54,9 @@ export function init() {
     const inField = e.target.closest?.('input,textarea,[contenteditable=true]');
     const m = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
     if (e.key === ' ' && !inField) { if (!spaceDown) { setSpaceDown(true); canvas.classList.add('space'); } e.preventDefault(); return; }
-    if (m && k === 'z' && !inField) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    // an empty box on a card (a new link's address) has no typing to undo: undo the board instead
+    const blank = inField && !!e.target.closest('.card') && e.target.matches('input,textarea') && !e.target.value;
+    if (m && k === 'z' && (!inField || blank)) { e.preventDefault(); if (blank) e.target.blur(); e.shiftKey ? redo() : undo(); return; }
     if (m && k === 'y' && !inField) { e.preventDefault(); redo(); return; }
     if (m && (k === '=' || k === '+')) { e.preventDefault(); zoomCenter(1.2); return; }
     if (m && k === '-') { e.preventDefault(); zoomCenter(1 / 1.2); return; }
