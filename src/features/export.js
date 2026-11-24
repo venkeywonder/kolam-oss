@@ -79,7 +79,7 @@ export function htmlToMd(html) {
 export function itemToMd(it, depth) {
   const d = it.data || {}, hd = n => '#'.repeat(Math.min(6, n));
   switch (it.type) {
-    case 'note': return htmlToMd(d.html);
+    case 'note': case 'text': return htmlToMd(d.html);
     case 'todo': return `**${d.title || 'To-do'}**\n\n` + (d.tasks || []).map(t => `- [${t.done ? 'x' : ' '}] ${t.t}${t.due ? ` (due ${t.due})` : ''}`).join('\n');
     case 'link': return d.url ? `[${d.title || d.url}](${d.url})${d.desc ? '\n\n' + d.desc : ''}` : '';
     case 'image': return `*[Image${d.caption ? ': ' + plain(d.caption) : ''}]*`;
@@ -95,6 +95,8 @@ export function itemToMd(it, depth) {
     }
     case 'doc': return `${hd(depth + 1)} ${d.title || 'Untitled document'}\n\n` + htmlToMd(d.html);
     case 'swatch': return `Colour \`${d.hex}\``;
+    case 'icon': return d.label ? `*[Icon: ${d.label}]*` : '';
+    case 'group': return d.title ? `${hd(depth + 1)} ${d.title}` : '';
     default: return '';
   }
 }

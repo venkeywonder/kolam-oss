@@ -16,12 +16,14 @@ import { hideMenu } from '../ui/menus.js';
 import { toast } from '../ui/toast.js';
 import { lightbox } from '../ui/modal.js';
 import { openDoc } from '../cards/doc.js';
+import { pickSwatch } from '../cards/types.js';
 import { drawDown, drawMode } from '../cards/drawing.js';
 import { viewCardDown } from './viewonly.js';
 import { snapGuides } from './arrange.js';
 import { overDrawer, renderPanel } from '../ui/drawer.js';
 import { confirmMove } from '../features/spaces.js';
 import { fly, glide, glideCards, gulp, land, massOf, open, popIn, shake, snap, snapCards, sway } from './motion.js';
+import { contentsOf } from '../cards/group.js';
 
 /* ================= pointer: cards ================= */
 export function cardDown(e, id) {
@@ -72,7 +74,7 @@ export function cardDbl(e, id) {
   if (RO) { if (it.type === 'link' && it.data.url) window.open(it.data.url, '_blank', 'noopener'); if (it.type === 'image') lightbox(id); return; }
   if (it.locked) return;
   if (it.type === 'link' && it.data.url) return window.open(it.data.url, '_blank', 'noopener');
-  if (it.type === 'swatch') { checkpoint(); const inp = $('input', els.get(id)); inp.style.pointerEvents = 'auto'; inp.click(); return; }
+  if (it.type === 'swatch') return pickSwatch(els.get(id));
   if (it.type === 'sketch') { if (editingId !== id) startEdit(id); return; }
   startEdit(id, { x: e.clientX, y: e.clientY });
 }
@@ -82,6 +84,10 @@ export function dragBegin(sx, sy) {
   checkpoint();
   let ids = [...sel].filter(id => S.items[id] && S.items[id].board === cur);
   ids = ids.filter(id => { const c = S.items[id].col; return !(c && sel.has(c)) && !S.items[id].locked; });
+  // a group takes along whatever lies wholly inside it (and inside groups inside it), keeping their stacking order
+  const carried = [];
+  for (const id of ids) if (S.items[id].type === 'group') for (const k of contentsOf(id)) if (!ids.includes(k) && !carried.includes(k)) carried.push(k);
+  ids.push(...carried.sort((a, b) => (S.items[a].z || 0) - (S.items[b].z || 0)));
   const others = itemsOf(cur).filter(i => !i.col && !ids.includes(i.id)).map(i => itemRect(i.id)).filter(Boolean);
   let z = maxZ();
   const touchedCols = new Set();
@@ -105,7 +111,8 @@ export function dragBegin(sx, sy) {
   });
   for (const c of touchedCols) { const ce = els.get(c); if (ce) $('.col-count', ce).textContent = childrenOf(c).length || ''; }
   glideCards(behind);
-  const hasCol = list.some(o => S.items[o.id].type === 'column');
+  // columns and groups never go into a column
+  const hasCol = list.some(o => S.items[o.id].type === 'column' || S.items[o.id].type === 'group');
   const ph = document.createElement('div'); ph.className = 'col-ph';
   ph.style.height = Math.min(120, Math.max(40, list[0]?.el.offsetHeight || 60)) + 'px';
   list.forEach(o => { o.w = o.el.offsetWidth; o.h = o.el.offsetHeight; });

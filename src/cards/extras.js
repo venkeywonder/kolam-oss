@@ -2,7 +2,6 @@ import { isDark } from '../ui/theme.js';
 import { $, clamp, esc, track } from '../core/util.js';
 import { icon } from '../ui/icons.js';
 import { pal } from '../core/palette.js';
-import { ctxmenu } from '../core/dom.js';
 import { S, RO, checkpoint, editingId, els, getAsset, save, sel, spaceDown } from '../core/store.js';
 import { countCards } from '../core/model.js';
 import { TYPES } from './types.js';
@@ -15,6 +14,7 @@ import { cardClick, dragBegin, dragEnd, dragMove } from '../canvas/drag.js';
 import { selectOnly } from '../canvas/selection.js';
 import { exitEdit } from '../canvas/editing.js';
 import { drawMode } from './drawing.js';
+import { boardIconHtml } from './board-icon.js';
 
 // --- to-do due dates (local calendar days, "YYYY-MM-DD")
 export const todayStr = todayYmd;
@@ -25,20 +25,6 @@ export function fmtDue(d) {
   if (n > 1 && n < 7) return day.toLocaleDateString(undefined, { weekday: 'short' });
   return day.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(day.getFullYear() !== t.getFullYear() ? { year: 'numeric' } : {}) });
 }
-export const EMOJI = ['🎨', '💡', '📚', '🎬', '✏️', '📷', '🎵', '🗺️', '🧠', '📅', '🚀', '⭐', '💼', '🏠', '🍳', '✈️', '🎮', '🌱', '🛍️', '💬', '📈', '🔬', '❤️', '🎉'];
-export function showIconPicker(id, x, y) {
-  ctxmenu.innerHTML = `<div class="mhead">Board icon</div><div class="memoji">${EMOJI.map(e => `<button data-em="${e}">${e}</button>`).join('')}</div><div class="msep"></div><button class="mi" data-em="">${icon('board', 16)}<span>Default icon</span></button>`;
-  ctxmenu.hidden = false;
-  ctxmenu.style.left = Math.min(x, innerWidth - 240) + 'px';
-  ctxmenu.style.top = Math.min(y, innerHeight - 300) + 'px';
-  ctxmenu.onclick = e => {
-    const b = e.target.closest('[data-em]'); if (!b) return;
-    hideMenu(); checkpoint();
-    S.items[id].data.emoji = b.dataset.em || undefined;
-    save(); rebuildCard(id);
-  };
-}
-
 /**
  * Press on a task (not editing): drag it up or down to reorder the list (the row follows the pointer, the others
  * slide out of its way, and on release everything glides into the new order); drag sideways to move the whole card;
@@ -175,7 +161,7 @@ export function init() {
       });
     };
   }
-  // --- board card icons (emoji)
+  // --- board card icons (emoji, icon or picture: cards/board-icon.js)
   {
     TYPES.board.html = it => {
       const b = S.boards[it.data.target];
@@ -186,7 +172,7 @@ export function init() {
       const kids = Object.values(S.boards).filter(x => x.parent === it.data.target).length;
       const p = pal(it.color || 'purple');
       const meta = [kids ? `${kids} board${kids === 1 ? '' : 's'}` : '', `${n} card${n === 1 ? '' : 's'}`].filter(Boolean).join(', ');
-      return `<div class="bd-icon" title="Open board" style="--tile:${isDark() ? p.dbg : p.bg};--tile-ink:${p.line}">${it.data.emoji ? `<span class="bd-emoji">${esc(it.data.emoji)}</span>` : icon('board', 30)}</div>` +
+      return `<div class="bd-icon" title="Open board" style="--tile:${isDark() ? p.dbg : p.bg};--tile-ink:${p.line}">${boardIconHtml(it.data, 30)}</div>` +
         `<div class="bd-title" data-ph="Untitled board">${esc(b.title)}</div><div class="bd-meta">${meta}</div>`;
     };
   }

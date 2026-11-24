@@ -1,4 +1,4 @@
-import { $, $$, esc, uid } from '../core/util.js';
+import { $, $$, esc, seeThrough, uid } from '../core/util.js';
 import { icon } from '../ui/icons.js';
 import { PALETTE, pal } from '../core/palette.js';
 import { S, RO, checkpoint, editingId, els, getAsset, save } from '../core/store.js';
@@ -11,14 +11,27 @@ import { caretEnd, exitEdit, startEdit } from '../canvas/editing.js';
 import { setLink } from '../actions/create.js';
 import { positionBars } from '../ui/floatbars.js';
 import { toast } from '../ui/toast.js';
-import { inkCol, isDark } from '../ui/theme.js';
+import { inkCol, isDark, lineCol } from '../ui/theme.js';
 import { bodyText, commentCardHtml, commentsOf, mountCommentCard } from '../features/comments.js';
 import { remember, styleOf } from '../core/styles.js';
+import { boardIconHtml } from './board-icon.js';
+import { newTextData, paintText } from './text.js';
+import { iconArt } from './icon.js';
 
 /* ================= card types ================= */
 // the sketch pen colour: the last one you picked, on any device
 const skColor = () => styleOf('sketch').pen || '#1f1f24';
 export const TYPES = {
+  // words straight on the board, no card (cards/text.js): as wide as the text until resized
+  text: {
+    label: 'Text', rich: true, autoW: true,
+    init: newTextData,
+    html: it => `<div class="rt tx-body" data-ph="Type something…">${sanitize(it.data.html)}</div>`,
+    mount: (el, it) => paintText(el, it),
+    edit: el => { const n = $('.tx-body', el); n.contentEditable = 'true'; return n; },
+    read: (el, it) => { it.data.html = cleanRT($('.tx-body', el)); },
+    text: it => it.data.html,
+  },
   note: {
     label: 'Note', w: 260, rich: true,
     init: () => ({ html: '' }),
@@ -82,6 +95,14 @@ export const TYPES = {
           const nel = rebuildCard(it.id);
           caretEnd(prev ? $(`li[data-tid="${prev.id}"] .tt`, nel) : $('.todo-title', nel));
           save();
+        } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && (tt || title) && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey) {
+          // up from a task's first line / down from its last line moves into the task above / below
+          const up = e.key === 'ArrowUp', field = tt || title, fields = $$('.todo-title,.tt', el);
+          const next = fields[fields.indexOf(field) + (up ? -1 : 1)];
+          const caret = caretRect();
+          if (!next || !onEdgeLine(field, caret, up)) return;
+          e.preventDefault();
+          caretInto(next, caret ? caret.left : null, up);
         }
       });
     },
@@ -126,7 +147,8 @@ export const TYPES = {
     html: it => `<div class="im"><img alt="" draggable="false"></div><div class="rt cap" data-ph="Add a caption">${sanitize(it.data.caption)}</div>`,
     mount(el, it) {
       const img = $('img', el);
-      img.onload = () => { img.classList.add('loaded'); renderLines(); positionBars(); };
+      // a picture with transparent parts sits straight on the board: no card colour or frame behind it
+      img.onload = () => { img.classList.add('loaded'); el.classList.toggle('see-through', seeThrough(img)); renderLines(); positionBars(); };
       if (it.data.src) img.src = it.data.src;
       else getAsset(it.data.asset).then(u => { if (u) img.src = u; else el.classList.add('missing'); });
     },
@@ -173,7 +195,7 @@ export const TYPES = {
       const card = boardCardOf(b.id), p = pal(it.color || card?.color || 'purple');
       const up = boardPath(b.id).slice(0, -1).map(x => x.title);
       const where = up.length ? (up.length > 2 ? '… / ' : '') + up.slice(-2).join(' / ') : 'Top board';
-      return `<div class="bd-icon" title="Go to board" style="--tile:${isDark() ? p.dbg : p.bg};--tile-ink:${p.line}">${card?.data.emoji ? `<span class="bd-emoji">${esc(card.data.emoji)}</span>` : icon('board', 30)}${badge}</div>` +
+      return `<div class="bd-icon" title="Go to board" style="--tile:${isDark() ? p.dbg : p.bg};--tile-ink:${p.line}">${boardIconHtml(card?.data, 30)}${badge}</div>` +
         `<div class="bd-title">${esc(b.title)}</div><div class="bd-meta sc-path" title="${esc([...up, b.title].join(' / '))}">${esc(where)}</div>`;
     },
     text: it => S.boards[it.data.target]?.title || '',
@@ -239,9 +261,11 @@ export const TYPES = {
   swatch: {
     label: 'Colour', w: 140, fitH: true,
     init: () => ({ hex: PALETTE[1 + Math.floor(Math.random() * 8)].line }),
-    html: it => `<div class="sw" style="background:${safeHex(it.data.hex)}"></div><div class="sw-hex">${safeHex(it.data.hex).toUpperCase()}</div><input type="color" value="${safeHex(it.data.hex)}" data-nodrag tabindex="-1">`,
+    html: it => `<div class="sw" style="background:${safeHex(it.data.hex)}"><button class="sw-pick" data-nodrag title="Change colour" aria-label="Change colour">${icon('picker', 15)}</button></div>` +
+      `<div class="sw-hex">${safeHex(it.data.hex).toUpperCase()}</div><input type="color" value="${safeHex(it.data.hex)}" data-nodrag tabindex="-1">`,
     mount(el, it) {
       const inp = $('input', el);
+      $('.sw-pick', el).addEventListener('click', e => { e.stopPropagation(); if (!RO && !S.items[it.id]?.locked) pickSwatch(el); });
       inp.addEventListener('input', () => {
         S.items[it.id].data.hex = inp.value;
         $('.sw', el).style.background = inp.value;
@@ -251,8 +275,41 @@ export const TYPES = {
     },
     text: it => it.data.hex,
   },
+  // a logo or icon straight on the board with its name under it (cards/icon.js); the width is the icon's size
+  icon: {
+    label: 'Icon', w: 64,
+    init: () => ({ ref: 'lucide/server', label: 'Server', auto: 'Server' }),
+    html: it => `<div class="ic-art">${iconArt(it.data, it.color)}</div><div class="ic-label" data-ph="Label">${esc(it.data.label || '')}</div>`,
+    edit: el => { const n = $('.ic-label', el); n.contentEditable = 'true'; return n; },
+    read: (el, it) => { it.data.label = $('.ic-label', el).innerText.replace(/\s+/g, ' ').trim(); },
+    enterExits: true,
+    text: it => it.data.label || '',
+  },
+  // a labelled box drawn around cards (cards/group.js): sits under everything, and moving it moves what's inside
+  group: {
+    label: 'Group', w: 480, h: 300, resizeH: true,
+    init: () => ({ title: '', solid: styleOf('group').solid || undefined }),
+    html: it => `<div class="grp-head">${it.data.ref || it.data.asset ? `<span class="grp-ic">${iconArt(it.data, it.color)}</span>` : ''}` +
+      `<span class="grp-title" data-ph="Group">${esc(it.data.title || '')}</span></div>`,
+    mount(el, it) {
+      el.style.setProperty('--grp', it.color ? lineCol(pal(it.color)) : 'var(--muted)');
+      el.classList.toggle('grp-solid', !!it.data.solid);
+    },
+    edit: el => { const t = $('.grp-title', el); t.contentEditable = 'true'; return t; },
+    read: (el, it) => { it.data.title = $('.grp-title', el).innerText.replace(/\s+/g, ' ').trim(); },
+    enterExits: true,
+    text: it => it.data.title || '',
+  },
 };
-export const noBg = new Set(['board', 'shortcut', 'swatch']);
+/** Open a colour card's colour picker. */
+export function pickSwatch(el) {
+  checkpoint();
+  const inp = $('input', el);
+  inp.style.pointerEvents = 'auto';
+  inp.click();
+}
+// their colour isn't a card background (a text element's colour is its text colour)
+export const noBg = new Set(['board', 'shortcut', 'swatch', 'text', 'icon', 'group']);
 export function drawSketch(el, it) {
   const cv = $('canvas', el); if (!cv) return;
   const w = it.w || 320, h = it.h || 220, dpr = 2;
@@ -267,4 +324,43 @@ export function drawSketch(el, it) {
     for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]);
     g.stroke();
   }
+}
+/* ---------- moving the cursor between a to-do list's title and tasks ---------- */
+/** Where the caret is on screen ({left, top, bottom, height}), or null when it can't be measured (an empty field). */
+function caretRect() {
+  const s = getSelection(); if (!s?.rangeCount || !s.focusNode) return null;
+  let n = s.focusNode, o = s.focusOffset;
+  if (n.nodeType !== 3) {
+    const after = n.childNodes[o], before = n.childNodes[o - 1];
+    if (after?.nodeType === 3) { n = after; o = 0; } else if (before?.nodeType === 3) { n = before; o = before.length; } else return null;
+  }
+  // a collapsed range often has no box (at the start or end of the text), so measure the character next to the caret
+  const r = document.createRange();
+  if (o < n.length) { r.setStart(n, o); r.setEnd(n, o + 1); const b = r.getClientRects()[0]; if (b) return { left: b.left, top: b.top, bottom: b.bottom, height: b.height }; }
+  if (o > 0) { r.setStart(n, o - 1); r.setEnd(n, o); const rs = r.getClientRects(), b = rs[rs.length - 1]; if (b) return { left: b.right, top: b.top, bottom: b.bottom, height: b.height }; }
+  return null;
+}
+const lineRects = field => { const r = document.createRange(); r.selectNodeContents(field); return [...r.getClientRects()].filter(x => x.height); };
+/** Is the caret on the field's first line (up) or last line (down)? An empty field is one line. */
+function onEdgeLine(field, caret, up) {
+  const rs = lineRects(field);
+  if (!caret || !rs.length) return true;
+  const mid = (caret.top + caret.bottom) / 2, lh = caret.height || 18;
+  return up ? mid - Math.min(...rs.map(r => r.top)) < lh : Math.max(...rs.map(r => r.bottom)) - mid < lh;
+}
+/** Put the caret in a field at the same horizontal spot, on its last line coming from below or its first line from above. */
+function caretInto(field, x, up) {
+  field.focus({ preventScroll: true });
+  const rs = lineRects(field);
+  let range = null;
+  if (x != null && rs.length) {
+    const line = rs.reduce((a, b) => (up ? b.bottom > a.bottom : b.top < a.top) ? b : a), y = (line.top + line.bottom) / 2;
+    const fr = field.getBoundingClientRect(), px = Math.min(Math.max(x, fr.left + 1), fr.right - 1);
+    const p = document.caretPositionFromPoint?.(px, y);
+    if (p) { range = document.createRange(); range.setStart(p.offsetNode, p.offset); }
+    else range = document.caretRangeFromPoint?.(px, y) || null;
+    if (range && !field.contains(range.startContainer)) range = null;
+  }
+  if (!range) { range = document.createRange(); range.selectNodeContents(field); range.collapse(!up); }
+  const s = getSelection(); s.removeAllRanges(); s.addRange(range);
 }

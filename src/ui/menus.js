@@ -19,7 +19,9 @@ import { exportAll } from '../features/io.js';
 import { toast } from './toast.js';
 import { lightbox } from './modal.js';
 import { openDoc } from '../cards/doc.js';
-import { showIconPicker } from '../cards/extras.js';
+import { showIconPicker } from '../cards/board-icon.js';
+import { setIconOf, showLogoPicker } from '../cards/icon.js';
+import { groupAround, setGroupBorder } from '../cards/group.js';
 import { editLineLabel } from '../canvas/line-labels.js';
 import { endsOf, routeOf } from '../canvas/lines.js';
 import { canReverse, reverseLine, setLineOpt } from './line-options.js';
@@ -53,6 +55,14 @@ export function showMenu(x, y, entries) {
   };
 }
 export const mod = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl+';
+/** Change the icon of an icon element, or of a group's label (which can also go without one). */
+export function pickIconFor(it, x, y) {
+  showLogoPicker(x, y, {
+    heading: it.type === 'group' ? 'Group icon' : 'Icon', current: it.data.ref || null,
+    onPick: p => setIconOf(it.id, p),
+    onClear: it.type === 'group' && (it.data.ref || it.data.asset) ? () => setIconOf(it.id, null) : undefined,
+  });
+}
 export function showItemMenu(x, y) {
   const one = sel.size === 1 ? S.items[[...sel][0]] : null;
   const m = [];
@@ -63,6 +73,9 @@ export function showItemMenu(x, y) {
   if (one?.type === 'image') m.push({ label: 'View full size', icon: 'expand', act: () => lightbox(one.id) });
   if (one && TYPES[one.type].edit && !one.locked) m.push({ label: one.type === 'sketch' ? 'Draw' : 'Edit', icon: 'edit', kbd: '↵', act: () => startEdit(one.id) });
   if (one?.type === 'board') m.push({ label: 'Change icon…', icon: 'board', act: () => showIconPicker(one.id, x, y) });
+  if ((one?.type === 'icon' || one?.type === 'group') && !one.locked) m.push({ label: one.type === 'icon' ? 'Change icon…' : one.data.ref || one.data.asset ? 'Change icon…' : 'Add icon…', icon: 'logo', act: () => pickIconFor(one, x, y) });
+  if (one?.type === 'group' && !one.locked) m.push({ label: one.data.solid ? 'Dashed border' : 'Solid border', icon: 'group', act: () => setGroupBorder([one.id], !one.data.solid) });
+  if ([...sel].some(id => S.items[id] && !S.items[id].col)) m.push({ label: sel.size > 1 ? 'Group these' : 'Put in a group', icon: 'group', act: () => groupAround(sel) });
   if (one?.type === 'board' && S.boards[one.data.target]) m.push({ label: 'Put a shortcut on another board…', icon: 'shortcut', act: () => shortcutTo(one.data.target) });
   if (m.length) m.push('-');
   m.push({ colors: true }, '-');
@@ -100,6 +113,9 @@ export function showLineMenu(x, y) {
 export function showCanvasMenu(x, y) {
   const at = lastPointer;
   const m = [
+    { label: 'Add text', icon: 'text', act: () => createFromTool('text', at) },
+    { label: 'Add icon…', icon: 'logo', act: () => createFromTool('icon', at) },
+    { label: 'Add group', icon: 'group', act: () => createFromTool('group', at) },
     { label: 'Add note', icon: 'note', act: () => createFromTool('note', at) },
     { label: 'Add to-do list', icon: 'todo', act: () => createFromTool('todo', at) },
     { label: 'Add board', icon: 'board', act: () => createFromTool('board', at) },

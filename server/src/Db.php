@@ -293,6 +293,15 @@ final class Db
                 "UPDATE assets SET space_id = user_id",
                 "CREATE INDEX assets_user_space ON assets (user_id, space_id)",
             ],
+            // "Continue with Google": the Google account (its stable subject id and address) linked to each account, and
+            // sign-ins in progress (hashed state, PKCE verifier, nonce). Accounts made with Google have pass_hash '' (no password).
+            18 => [
+                "ALTER TABLE users ADD COLUMN google_sub VARCHAR(255)",
+                "ALTER TABLE users ADD COLUMN google_email VARCHAR(255)",
+                "CREATE UNIQUE INDEX users_google ON users (google_sub)",
+                "CREATE TABLE google_flows (state_hash CHAR(64) PRIMARY KEY, verifier VARCHAR(128) NOT NULL, nonce VARCHAR(64) NOT NULL,
+                  intent TEXT NOT NULL, expires_at BIGINT NOT NULL)",
+            ],
         ];
         // Most requests find the schema current. Otherwise one request migrates while the others wait for it, then
         // read the version again (two requests running the same step would fail on "table already exists").

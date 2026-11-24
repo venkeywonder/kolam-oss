@@ -53,14 +53,15 @@ export function init() {
       if (!active) {
         if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
         active = true; marqueeEl.hidden = false;
-        rects = itemsOf(cur).filter(it => !it.col).map(it => [it.id, itemRect(it.id)]).filter(x => x[1]);
+        // groups only count when the box takes them in whole, so you can box-select what's inside one
+        rects = itemsOf(cur).filter(it => !it.col).map(it => [it.id, itemRect(it.id), it.type === 'group']).filter(x => x[1]);
       }
       const x1 = Math.min(sx, ev.clientX), y1 = Math.min(sy, ev.clientY), x2 = Math.max(sx, ev.clientX), y2 = Math.max(sy, ev.clientY);
       Object.assign(marqueeEl.style, { left: x1 - cr.left + 'px', top: y1 - cr.top + 'px', width: x2 - x1 + 'px', height: y2 - y1 + 'px' });
       const w1 = toWorld(ev.clientX, ev.clientY);
       const rx1 = Math.min(w0.x, w1.x), ry1 = Math.min(w0.y, w1.y), rx2 = Math.max(w0.x, w1.x), ry2 = Math.max(w0.y, w1.y);
       const next = new Set(base);
-      for (const [id, r] of rects) if (r.x < rx2 && r.x + r.w > rx1 && r.y < ry2 && r.y + r.h > ry1) next.add(id);
+      for (const [id, r, whole] of rects) if (whole ? r.x >= rx1 && r.x + r.w <= rx2 && r.y >= ry1 && r.y + r.h <= ry2 : r.x < rx2 && r.x + r.w > rx1 && r.y < ry2 && r.y + r.h > ry1) next.add(id);
       for (const id of sel) if (!next.has(id)) els.get(id)?.classList.remove('selected');
       for (const id of next) if (!sel.has(id)) els.get(id)?.classList.add('selected');
       sel.clear(); next.forEach(id => sel.add(id));

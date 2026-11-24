@@ -3,6 +3,7 @@ const card = (inner, h = 26, y = 5) => `<rect x="3" y="${y}" width="30" height="
 const bar = (x, y, w, c = 'var(--tile-line)') => `<rect x="${x}" y="${y}" width="${w}" height="2" rx="1" fill="${c}"/>`;
 
 export const TILE = {
+  text: `<path d="M8 10.5V7h20v3.5M18 7v22M14 29h8" fill="none" stroke="var(--tile-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`,
   note: card(bar(8, 11, 20) + bar(8, 16, 20) + bar(8, 21, 13)),
   link: card(`<path d="M15.5 20.5l-1.6 1.6a3.2 3.2 0 01-4.5-4.5l2.6-2.6a3.2 3.2 0 014.5 0M20.5 15.5l1.6-1.6a3.2 3.2 0 00-4.5-4.5l-2.6 2.6a3.2 3.2 0 000 4.5" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linecap="round"/>`),
   todo: card(`<path d="M8 12.5l1.6 1.6L12.6 11M8 20l1.6 1.6 3-3.1" fill="none" stroke="var(--tile-ink)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>` + bar(16, 12, 12, 'var(--tile-ink)') + bar(16, 19.5, 12, 'var(--tile-ink)')),
@@ -15,6 +16,9 @@ export const TILE = {
   doc: `<path d="M8 3h14l7 7v22a1 1 0 01-1 1H8a1 1 0 01-1-1V4a1 1 0 011-1z" fill="var(--tile-card)" stroke="var(--tile-edge)"/><path d="M22 3v7h7" fill="none" stroke="var(--tile-edge)"/>${bar(11, 15, 14, 'var(--tile-ink)')}${bar(11, 20, 14)}${bar(11, 25, 10)}`,
   sketch: card(`<path d="M8 22c3-6 5-9 7-7s-2 7 1 7 4-9 7-9 1 6 4 6" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`),
   swatch: `<rect x="4" y="4" width="18" height="18" rx="2" fill="#2f7d84"/><rect x="14" y="14" width="18" height="18" rx="2" fill="#e05a78" stroke="var(--tile-card)" stroke-width="1.5"/>`,
+  // a cloud logo-ish tile: an orange square with a white stack, like a service icon
+  icon: `<rect x="5" y="5" width="26" height="26" rx="5" fill="#ed7100"/><path d="M12 14l6-3 6 3-6 3zM12 18l6 3 6-3M12 22l6 3 6-3" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>`,
+  group: `<rect x="4" y="6" width="28" height="24" rx="2" fill="none" stroke="#5f79f5" stroke-width="1.8" stroke-dasharray="3.5 2.5"/><rect x="4" y="6" width="12" height="6" rx="1" fill="#5f79f5"/><rect x="10" y="17" width="7" height="7" rx="1.5" fill="var(--tile-card)" stroke="var(--tile-edge)"/><rect x="20" y="17" width="7" height="7" rx="1.5" fill="var(--tile-card)" stroke="var(--tile-edge)"/>`,
   image: `<rect x="5" y="5" width="26" height="26" rx="3" fill="none" stroke="var(--tile-ink)" stroke-width="1.8"/><circle cx="13" cy="13" r="2.5" fill="var(--tile-ink)"/><path d="M6 27l8-8 5 5 4-4 7 7" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linejoin="round"/>`,
   upload: `<path d="M10 4h11l7 7v20a1 1 0 01-1 1H10a1 1 0 01-1-1V5a1 1 0 011-1z" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linejoin="round"/><path d="M21 4v7h7" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linejoin="round"/>`,
   draw: `<path d="M24.5 6.5l5 5L13 28H8v-5z" fill="none" stroke="var(--tile-ink)" stroke-width="1.8" stroke-linejoin="round"/><path d="M21 10l5 5" stroke="var(--tile-ink)" stroke-width="1.8"/>`,

@@ -108,7 +108,9 @@ also the best way to support the project.
 
 Kolam is free software under the [GNU Affero General Public License v3.0](LICENSE). Use it, change it, host it. If you
 run a modified version as a service for other people, share your changes with them too. The bundled Yjs and lib0
-(`src/vendor/yjs.js`) are MIT-licensed.
+(`src/vendor/yjs.js`) are MIT-licensed, Lucide icons (`src/vendor/lucide.json`) are ISC-licensed, and the logo packs in
+`src/vendor/logos/` keep their own terms; the AWS Architecture Icons there are AWS's, for architecture diagrams (see
+[its README](src/vendor/logos/README.md)).
 
 <div align="center">
 <sub>Made with ☕ and a lot of rice-flour dots.</sub>

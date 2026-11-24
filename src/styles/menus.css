@@ -23,6 +23,42 @@
 .memoji{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;padding:6px}
 .memoji button{border:0;background:none;font-size:20px;height:34px;border-radius:7px;transition:transform .12s var(--spring)}
 .memoji button:hover{background:var(--hover);transform:scale(1.15)}
+/* board icon picker (cards/board-icon.js): emoji, icons, uploaded image */
+.bip{width:288px}
+.bip-tabs{display:flex;gap:2px;margin:4px 6px 8px;padding:3px;background:var(--chip);border-radius:9px}
+.bip-tabs button{flex:1;border:0;background:none;height:28px;border-radius:7px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.bip-tabs button[aria-selected=true]{background:var(--menu);color:var(--ink);box-shadow:var(--shadow-card)}
+.bip-field{display:block;width:calc(100% - 12px);margin:0 6px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);padding:0 10px;font:14px var(--font);outline:none}
+.bip-field:focus{border-color:var(--focus)}
+.bip-note{font-size:12px;color:var(--muted);padding:6px 10px;line-height:1.4}
+.bip-icons{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:6px;max-height:228px;overflow:auto}
+.bip-icons .bip-note{grid-column:1/-1;text-align:center}
+.bip-icons button{border:0;background:none;height:36px;border-radius:7px;display:grid;place-items:center;color:var(--ink-2);transition:transform .12s var(--spring)}
+.bip-icons button:hover{background:var(--hover);color:var(--ink);transform:scale(1.12)}
+.bip-icons button.on{color:var(--accent);background:var(--accent-soft)}
+.bip-up{display:flex;flex-direction:column;align-items:center;gap:4px;width:calc(100% - 12px);margin:4px 6px 0;padding:18px 10px;border:1.5px dashed var(--line);border-radius:10px;background:none;color:var(--muted);transition:border-color .12s,color .12s}
+.bip-up:hover{border-color:var(--accent);color:var(--accent)}
+.bip-up b{font-size:14px;color:var(--ink)}
+.bip-up span{font-size:12px;color:var(--muted)}
+.bip-up:disabled{opacity:.6;cursor:progress}
+.bip-err{margin:0 6px 4px;padding:7px 10px;border-radius:8px;background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);font-size:12.5px;line-height:1.4}
+/* the icon picker (cards/icon.js): wider than a menu, logos with their names */
+#ctxmenu:has(.lgp){max-width:none}
+.bip.lgp{width:384px}
+.lgp-list{max-height:min(360px,calc(100vh - 230px));overflow:auto;padding:2px 6px 4px;margin-top:6px}
+.lgp-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 4px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);position:sticky;top:0;background:var(--menu);z-index:1}
+.lgp-head button{border:0;background:none;color:var(--accent);font:600 12px var(--font);text-transform:none;letter-spacing:0;padding:2px 4px;border-radius:5px}
+.lgp-head button:hover{background:var(--hover)}
+.lgp-head em{font-style:normal;font-weight:500}
+.lgp-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
+.lgp-grid button{border:0;background:none;border-radius:8px;padding:7px 2px 5px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-2);min-width:0;transition:background .12s}
+.lgp-grid button:hover{background:var(--hover);color:var(--ink)}
+.lgp-grid button.on{background:var(--accent-soft)}
+.lgp-grid img,.lgp-grid svg{width:28px;height:28px;object-fit:contain;flex:none}
+.lgp-grid span{font-size:10.5px;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lgp .bip-field{margin-top:2px}
+.lgp-note{font-size:11px;padding:6px 10px 2px}
+.lgp-note:empty{display:none}
 .floatbar{position:fixed;z-index:60;background:var(--float);color:#fff;border-radius:10px;padding:4px;display:flex;align-items:center;gap:2px;box-shadow:0 8px 24px rgba(0,0,0,.22);animation:pop .14s var(--ease)}
 .floatbar button{border:0;background:none;color:#e9e9ee;height:30px;min-width:30px;padding:0 7px;border-radius:7px;display:grid;place-items:center;font-size:13px;font-weight:600;transition:background .1s}
 .floatbar button:hover{background:rgba(255,255,255,.12);color:#fff}
@@ -37,3 +73,9 @@
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,14px) scale(.96)}}
 #toast button{border:0;background:none;color:#ffab8a;font-weight:700;padding:0}
 #toast button:hover{text-decoration:underline}
+/* ⌘S / Ctrl+S (ui/toast.js notice): a small note in the bottom-right corner, above the zoom controls */
+#notice{position:fixed;right:16px;bottom:62px;z-index:90;display:flex;align-items:center;gap:8px;background:var(--float);color:#fff;padding:9px 14px 9px 11px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:noticeIn .26s var(--spring)}
+#notice[hidden]{display:none}
+#notice.ok svg{color:#6fdc9c}
+#notice.bad svg{color:#ff8a80}
+@keyframes noticeIn{from{opacity:0;transform:translateY(10px) scale(.96)}}

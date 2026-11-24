@@ -156,6 +156,11 @@ everywhere, suspend / unsuspend); reports (turn the reported link off, suspend i
 A suspended account can't sign in, its sessions and access keys are removed, and its share links stop working;
 nothing is deleted. Every admin action is written to the PHP error log.
 
+**Continue with Google.** Create an OAuth client (Google Cloud console → APIs & Services → Credentials → Web
+application) with the authorised redirect URI `https://<your app>/api/auth/google/callback`, and set
+`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. The button appears on the sign-in and sign-up screens; leave both empty
+to keep it off. Signing in with Google links to an existing account with the same address.
+
 **Analytics.** Set `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID` and `FIREBASE_MEASUREMENT_ID` (a
 Firebase web app with Google Analytics) to log page views and a few product events: `sign_up`, `login`,
 `board_created`, `card_created`, `invite_sent`, `share_link_created`, `ai_connected`, `onboarding_choice`,

@@ -24,9 +24,9 @@ const EDGES = { free: ['n', 'e', 's', 'w'], fit: ['n', 'e', 's', 'w'], ratio: ['
 const WIDTHS = {
   note: [220, 720], todo: [240, 640], link: [240, 640], image: [140, 1200], file: [240, 480], board: [130, 280], shortcut: [130, 280],
   column: [240, 520], comment: [240, 480], sketch: [220, 1200], swatch: [140, 360], table: [300, 1200], doc: [260, 520],
-  drawing: [60, 1600],
+  drawing: [60, 1600], text: [40, 1600], icon: [24, 480], group: [120, 4000],
 };
-const HEIGHTS = { sketch: [150, 900] };
+const HEIGHTS = { sketch: [150, 900], group: [80, 4000] };
 const widthRange = type => WIDTHS[type] || [180, 800];
 const heightRange = type => HEIGHTS[type] || [120, 1200];
 const SAFE = 12;
@@ -72,6 +72,7 @@ export function resizeStart(e, id) {
       started = true;
       checkpoint();
       el.classList.add('resizing');
+      if (T.autoW) el.style.maxWidth = 'none';   // text gets a width of its own from now on
       el.querySelector(`.rz[data-rz="${dir}"]`).classList.add('on');
       body.style.setProperty('--rz-cursor', getComputedStyle(el.querySelector(`.rz[data-rz="${dir}"]`)).cursor);
       body.classList.add('resizing');
@@ -151,6 +152,12 @@ export function resizeStart(e, id) {
 export function resetSize(id) {
   const it = S.items[id], el = els.get(id), T = TYPES[it?.type];
   if (!it || !el || it.locked) return;
+  // text: back to fitting its words
+  if (T.autoW) {
+    if (!it.w) return;
+    checkpoint(); delete it.w; el.style.width = 'max-content'; el.style.maxWidth = '900px';
+    save(); renderLines(); positionBars(); return;
+  }
   const w = T.w || 260, h = T.resizeH ? T.h || 220 : null;
   if (el.offsetWidth === w && (h == null || el.offsetHeight === h) && !(T.fitH && it.h)) return;
   checkpoint();

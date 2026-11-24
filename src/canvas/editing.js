@@ -54,8 +54,8 @@ export function exitEdit(silent) {
     needRebuild = !!TYPES[it.type].stop?.(el, it);
     el.classList.remove('editing');
     $$('[contenteditable]', el).forEach(n => { n.removeAttribute('contenteditable'); if (n.classList.contains('rt') && !n.innerText.trim()) n.innerHTML = ''; });
-    // throw away a brand-new note that was left empty
-    if (!silent && freshId === id && it.type === 'note' && !it.data.html) {
+    // throw away a brand-new note or text that was left empty
+    if (!silent && freshId === id && (it.type === 'note' || it.type === 'text') && !it.data.html) {
       deleteItems([id]); setFreshId(null); setEditSnap(null);
       undoStack.pop(); updUndo(); save(); renderBoard(); return;
     }

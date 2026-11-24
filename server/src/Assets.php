@@ -8,7 +8,7 @@ use Kolam\Storage\{LocalStorage, S3Storage, Storage};
 /** Uploaded images and files. Ids are long random strings, so a URL works like a capability link. */
 final class Assets
 {
-    private const INLINE = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/bmp',
+    private const INLINE = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/bmp', 'image/svg+xml',
         'video/mp4', 'video/webm', 'video/quicktime', 'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm',
         'application/pdf'];
 
@@ -37,6 +37,11 @@ final class Assets
     public static function store(string $userId, string $tmp, string $name, int $size, ?string $id = null, ?string $spaceId = null): array
     {
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: 'application/octet-stream';
+        // libmagic calls some SVGs (a comment or doctype first) XML or plain text
+        if ($mime !== 'image/svg+xml' && preg_match('~^(image/svg|text/(xml|plain|html)|application/xml)$~', $mime)
+            && preg_match('/\.svg$/i', $name) && preg_match('/<svg[\s>]/i', (string) file_get_contents($tmp, false, null, 0, 65536))) {
+            $mime = 'image/svg+xml';
+        }
         $id ??= 'a_' . bin2hex(random_bytes(12));
         self::storage()->put($id, $tmp, $mime);
         $name = mb_substr(preg_replace('/[\x00-\x1f"\\\\\/]/u', '', $name) ?: 'file', 0, 200);
@@ -55,8 +60,8 @@ final class Assets
         if (($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) { http_response_code(304); exit; }
         $inline = in_array($a['mime'], self::INLINE, true);
         header('Content-Type: ' . ($inline ? $a['mime'] : 'application/octet-stream'));
-        // user files never run as pages on our origin
-        header("Content-Security-Policy: default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox");
+        // user files never run as pages on our origin (an SVG's scripts stay off too); data: images and fonts inside SVGs still show
+        header("Content-Security-Policy: default-src 'none'; img-src 'self' data:; font-src data:; media-src 'self'; style-src 'unsafe-inline'; sandbox");
         $fn = rawurlencode($a['name'] ?: 'file');
         header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . "; filename*=UTF-8''$fn");
         if (!self::storage()->output($id)) Http::fail(404, 'Not found');

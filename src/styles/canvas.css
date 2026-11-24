@@ -12,7 +12,7 @@
 #drawTemp{z-index:6}
 #guides{position:absolute;left:0;top:0;z-index:7;pointer-events:none}
 #guides i{position:absolute;background:var(--accent)}
-#marquee{position:absolute;border:1px solid rgba(50,59,74,.45);background:rgba(50,59,74,.06);pointer-events:none;z-index:20}
+#marquee{position:absolute;border:1px solid color-mix(in srgb,var(--select) 45%,transparent);background:color-mix(in srgb,var(--select) 7%,transparent);pointer-events:none;z-index:20}
 #emptyHint{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);text-align:center;color:var(--muted);width:min(560px,90%);pointer-events:none;display:flex;flex-direction:column;gap:8px;align-items:center;animation:fadeUp .4s var(--ease)}
 #emptyHint strong{color:var(--ink);font:700 22px/1.25 var(--serif)}
 @keyframes fadeUp{from{opacity:0;transform:translate(-50%,calc(-50% + 10px))}}

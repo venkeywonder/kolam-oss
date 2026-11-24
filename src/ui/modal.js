@@ -1,4 +1,4 @@
-import { $, esc } from '../core/util.js';
+import { $, esc, seeThrough } from '../core/util.js';
 import { S, getAsset } from '../core/store.js';
 
 /* ================= modal ================= */
@@ -50,6 +50,7 @@ export function lightbox(id) {
   const it = S.items[id]; if (!it) return;
   const card = openModal('<img alt="">', { cls: 'lightbox' });
   const img = $('img', card);
+  img.onload = () => img.classList.toggle('see-through', seeThrough(img));
   if (it.data.src) img.src = it.data.src; else getAsset(it.data.asset).then(u => { if (u) img.src = u; });
 }
 export function downloadText(name, text, type = 'text/plain') {

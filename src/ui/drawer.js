@@ -52,7 +52,7 @@ export function miniCard(it) {
   const p = pal(it.color);
   if (!noBg.has(it.type) && it.color) { el.style.setProperty('--card-bg', isDark() ? p.dbg : p.bg); if (p.dark && !isDark()) el.classList.add('dark'); }
   el.innerHTML = TYPES[it.type].html(it);
-  if (['image', 'file', 'sketch'].includes(it.type)) TYPES[it.type].mount(el, it);
+  if (['image', 'file', 'sketch', 'text'].includes(it.type)) TYPES[it.type].mount(el, it);
   if (it.type === 'sketch') el.style.height = Math.round((it.h || 220) * 270 / (it.w || 320)) + 'px';
   return el;
 }

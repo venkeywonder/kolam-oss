@@ -13,7 +13,7 @@ import { api } from './api.js';
 import { S, SPACE, VIEW, docOpen, editingId, markRemote } from './store.js';
 import { refresh, save, syncedItem } from './sync.js';
 
-const FIELDS = { note: ['html'], doc: ['html'], image: ['caption'] };
+const FIELDS = { text: ['html'], note: ['html'], doc: ['html'], image: ['caption'] };
 const REMOTE = 'remote';
 const EMPTY = Y.encodeStateAsUpdate(new Y.Doc());
 const MAX_DOCS = 20, COMPACT_AFTER = 100;

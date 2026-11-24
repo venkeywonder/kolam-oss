@@ -24,13 +24,16 @@ import { editLineLabel } from '../canvas/line-labels.js';
 import { renderLines } from '../canvas/lines.js';
 import { canReverse, lineGlyph, lineOpt, linePopHtml, reverseLine, setLineOpt } from './line-options.js';
 import { showArrangeMenu, toggleLock } from '../canvas/arrange.js';
-import { showIconPicker } from '../cards/extras.js';
+import { showIconPicker } from '../cards/board-icon.js';
 import { moveToDialog } from '../actions/move.js';
 import { ALIGNABLE, ALIGNS, alignIcon, alignOf, setAlign } from '../cards/align.js';
 import { originalOf, shortcutTo, showOriginal } from '../features/shortcuts.js';
+import { FONTS, fillOf, inkOf, mountTextPop, sizeOf, textItems, textPopHtml } from '../cards/text.js';
+import { pickIconFor } from './menus.js';
+import { groupAround, setGroupBorder } from '../cards/group.js';
 
 export const TOOLS = [
-  ['note', 'Note'], ['link', 'Link'], ['todo', 'To-do'], ['line', 'Line'], ['board', 'Board'], ['shortcut', 'Shortcut'], ['column', 'Column'],
+  ['text', 'Text'], ['note', 'Note'], ['link', 'Link'], ['todo', 'To-do'], ['line', 'Line'], ['icon', 'Icon'], ['group', 'Group'], ['board', 'Board'], ['shortcut', 'Shortcut'], ['column', 'Column'],
   ['comment', 'Comment'], ['table', 'Table'], ['doc', 'Doc'], ['sketch', 'Sketch'], ['swatch', 'Color'],
   '-', ['image', 'Add image'], ['upload', 'Upload'], ['draw', 'Draw'],
 ];
@@ -55,7 +58,10 @@ export function renderCtxTools() {
   if (selLine) colorKey = S.lines[selLine]?.color;
   else if (sel.size === 1) colorKey = S.items[[...sel][0]]?.color;
   const sw = selLine ? pal(colorKey).line : (colorKey ? pal(colorKey).bg : '#fff');
-  h += btn('data-act="color" title="Color"', `<span class="glyph swatch-glyph" style="--c:${sw}">${colorKey ? '' : '<i></i>'}</span>`, 'Color');
+  // only text elements selected: their own colour, font, size and fill instead of the card colour
+  const txt = !selLine && sel.size ? textItems(sel) : [];
+  if (txt.length && txt.length === sel.size) h += textGlyphs(txt[0]);
+  else h += btn('data-act="color" title="Color"', `<span class="glyph swatch-glyph" style="--c:${sw}">${colorKey ? '' : '<i></i>'}</span>`, 'Color');
   if (selLine) {
     const ln = S.lines[selLine];
     if (ln) {
@@ -74,6 +80,9 @@ export function renderCtxTools() {
     if (one?.type === 'link' && one.data.url) h += btn('data-act="openlink" title="Open link in a new tab"', glyph('open'), 'Open');
     if (one?.type === 'image') h += btn('data-act="view" title="View full size"', glyph('expand'), 'View');
     if (one?.type === 'doc') h += btn('data-act="opendoc" title="Open document"', glyph('open'), 'Open');
+    if ((one?.type === 'icon' || one?.type === 'group') && !one.locked) h += btn(`data-act="logo" title="${one.type === 'icon' ? 'Change icon' : 'Icon by the group’s name'}"`, glyph('logo'), 'Icon');
+    if (one?.type === 'group' && !one.locked) h += btn(`data-act="gborder" title="${one.data.solid ? 'Dashed border' : 'Solid border'}"`, glyph('group'), one.data.solid ? 'Dashed' : 'Solid');
+    if (sel.size > 1) h += btn('data-act="group" title="Draw a group around these"', glyph('group'), 'Group');
     if (one && TYPES[one.type].edit && !one.locked) h += btn('data-act="edit" title="Edit (Enter)"', glyph(one.type === 'sketch' ? 'sketch' : 'edit'), one.type === 'sketch' ? 'Draw' : 'Edit');
     const texts = [...sel].map(id => S.items[id]).filter(Boolean);
     if (texts.length && texts.every(it => ALIGNABLE.has(it.type) && !it.locked)) h += btn('data-act="align" title="Text alignment"', glyph(alignIcon(alignOf(texts[0]))), 'Align');
@@ -85,6 +94,26 @@ export function renderCtxTools() {
     h += `<div class="sel-count">${sel.size > 1 ? sel.size + ' cards' : ''}</div>`;
   }
   ctx.innerHTML = h + '<div class="tool-spacer"></div>' + btn('data-act="del" class="trash-tool" title="Move to Trash (Delete)"', tile('trash'), 'Trash');
+}
+/* ---------- text elements: colour, font, size and fill (cards/text.js) ---------- */
+const TEXT_ACTS = ['tcolor', 'tfont', 'tsize', 'tfill'];
+function textGlyphHtml(act, it) {
+  const d = it.data;
+  if (act === 'tcolor') return `<span class="glyph tx-glyph tx-ink" style="--c:${inkOf(it) || 'var(--ink)'}">A</span>`;
+  if (act === 'tfont') return `<span class="glyph tx-glyph" style="font-family:${(FONTS.find(f => f[0] === d.font) || FONTS[0])[2]}">Aa</span>`;
+  if (act === 'tsize') return `<span class="glyph tx-glyph tx-num">${sizeOf(d)}</span>`;
+  const fill = fillOf(d);
+  return `<span class="glyph swatch-glyph" style="--c:${fill || 'transparent'}">${fill ? '' : '<i></i>'}</span>`;
+}
+function textGlyphs(it) {
+  return [['tcolor', 'Text colour', 'Color'], ['tfont', 'Font and style', 'Font'], ['tsize', 'Text size', 'Size'], ['tfill', 'Background', 'Fill']]
+    .map(([act, title, label]) => btn(`data-act="${act}" title="${title}"`, textGlyphHtml(act, it), label)).join('');
+}
+function openTextPop(anchor, act) {
+  const items = textItems(sel); if (!items.length) return;
+  const el = openPop(anchor, act, 'tool-pop tx-pop', textPopHtml(act, items[0]));
+  // the buttons show the new look as it changes
+  if (el) mountTextPop(el, act, items, () => { for (const a of TEXT_ACTS) { const b = $(`[data-act="${a}"] .tile-wrap`, ctx); if (b) b.innerHTML = textGlyphHtml(a, items[0]); } });
 }
 
 /* ---------- popovers (colour, line options) ---------- */
@@ -151,7 +180,7 @@ function toolDown(e) {
     raf = 0; const ev = last;
     place();
     ghost.hidden = true;
-    const t = findDropTarget(ev.clientX, ev.clientY, new Set(), tool === 'column' || tool === 'line');
+    const t = findDropTarget(ev.clientX, ev.clientY, new Set(), ['column', 'line', 'icon', 'group'].includes(tool));
     ghost.hidden = false;
     $$('.drop-target').forEach(x => x.classList.remove('drop-target'));
     colT = null;
@@ -199,6 +228,7 @@ function ctxClick(e) {
     case 'back': sel.clear(); setSelLine(null); refreshSel(); break;
     case 'color': openPalette(b); break;
     case 'align': openAlignPop(b); break;
+    case 'tcolor': case 'tfont': case 'tsize': case 'tfill': openTextPop(b, b.dataset.act); break;
     case 'del': deleteSelection(); break;
     case 'dup': duplicate(); break;
     case 'move': moveToDialog(); break;
@@ -206,6 +236,9 @@ function ctxClick(e) {
     case 'shortcut': shortcutTo(one.data.target); break;
     case 'original': showOriginal(one.data.target); break;
     case 'icon': { const r = b.getBoundingClientRect(); showIconPicker(one.id, r.right + 8, r.top); break; }
+    case 'logo': { const r = b.getBoundingClientRect(); pickIconFor(one, r.right + 8, r.top); break; }
+    case 'gborder': setGroupBorder([one.id], !one.data.solid); renderCtxTools(); break;
+    case 'group': groupAround(sel); break;
     case 'openlink': window.open(one.data.url, '_blank', 'noopener'); break;
     case 'edit': startEdit(one.id); break;
     case 'view': lightbox(one.id); break;

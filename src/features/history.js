@@ -27,8 +27,9 @@ let vers = null;   // { item, label, type, list, names, sel: index, data: Map re
 let lastLoad = 0;
 
 /* ---------- describing changes ---------- */
-const TYPE_ICON = { note: 1, todo: 1, link: 1, board: 1, shortcut: 1, column: 1, comment: 1, table: 1, doc: 1, image: 1, sketch: 1, swatch: 1 };
-const typeIcon = t => (t in TYPE_ICON ? t : 'note');
+// the icon for each type of card (1: the icon named like the type)
+const TYPE_ICON = { text: 1, note: 1, todo: 1, link: 1, board: 1, shortcut: 1, column: 1, comment: 1, table: 1, doc: 1, image: 1, sketch: 1, swatch: 1, group: 1, icon: 'logo' };
+const typeIcon = t => (TYPE_ICON[t] === 1 ? t : TYPE_ICON[t] || 'note');
 /** What a changed field is about. */
 function part(f) {
   if (f.startsWith('data.') || f === 'type') return 'content';

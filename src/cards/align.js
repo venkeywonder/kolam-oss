@@ -7,7 +7,7 @@
 import { S, checkpoint, els, save } from '../core/store.js';
 import { remember } from '../core/styles.js';
 
-export const ALIGNABLE = new Set(['note', 'todo', 'column', 'comment', 'image', 'table', 'doc']);
+export const ALIGNABLE = new Set(['text', 'note', 'todo', 'column', 'comment', 'image', 'table', 'doc']);
 export const ALIGNS = [['left', 'Left', 'alignLeft'], ['center', 'Center', 'alignCenter'], ['right', 'Right', 'alignRight'], ['justify', 'Justify', 'alignJustify']];
 const usual = type => (type === 'column' ? 'center' : 'left');
 

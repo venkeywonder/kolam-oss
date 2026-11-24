@@ -110,6 +110,7 @@ export function save(quiet) {
   saveT = setTimeout(flush, due - Date.now());
 }
 
+/** Push unsent changes now. Resolves true once everything is on the server, false if it couldn't be saved. */
 export async function flush() {
   clearTimeout(saveT); saveT = null;
   if (VIEW || !user || !S) return;
@@ -117,14 +118,14 @@ export async function flush() {
   const y = ytext.outgoing();
   const ops = diff();
   writeCache();
-  if (!ops.length && !Object.values(y).some(e => e.u)) return setStatus('Saved', 'saved');
+  if (!ops.length && !Object.values(y).some(e => e.u)) { setStatus('Saved', 'saved'); return true; }
   const space = SPACE;
   pushing = (async () => {
     try {
       const body = { ops: ops.map(({ j, ...o }) => o) };
       if (Object.keys(y).length) body.y = y;
       const r = await api('sync?' + q(), { method: 'POST', body });
-      if (space !== SPACE) return;
+      if (space !== SPACE) return false;
       for (const o of ops) o.del ? synced[o.k].delete(o.id) : synced[o.k].set(o.id, o.j);
       // other people's text that came in meanwhile, and records the server completed or merged
       let changed = ytext.take(r.y).length > 0;
@@ -135,19 +136,21 @@ export async function flush() {
       setStatus('Saved', 'saved');
       bc?.postMessage({ t: 'pushed', user: user.id, space });
       if (changed) refresh(); else writeCache();
+      return true;
     } catch (e) {
-      if (space !== SPACE) return;
+      if (space !== SPACE) return false;
       ytext.unsent(y);
       if (e.status === 403 || e.status === 409 || e.status === 422) {   // refused: go back to what the server has
         toast(e.message);
         setStatus('Saved', 'saved');
         setTimeout(resync, 0);
-        return;
+        return false;
       }
-      if (e.status === 404) return lost();
+      if (e.status === 404) { lost(); return false; }
       serverOK = e.status !== 0 ? serverOK : false;
       setStatus(e.status === 0 ? 'Offline — saved on this device' : 'Not saved', 'error');
       if (e.status !== 401) setTimeout(() => save(true), 5000);
+      return false;
     } finally { pushing = null; }
   })();
   return pushing;

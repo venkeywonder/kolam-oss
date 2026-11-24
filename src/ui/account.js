@@ -1,4 +1,4 @@
-/* Account settings page (#/account/<section>): profile, password and signed-in devices, data export, and account
+/* Account settings page (#/account/<section>): profile, sign-in (password, Google) and signed-in devices, data export, and account
  * deletion. It covers the app while open; the board stays loaded underneath, and "Back to boards" (or Escape) returns
  * to the board you came from. */
 import { $, esc } from '../core/util.js';
@@ -9,6 +9,7 @@ import { confirmDialog, openModal, closeModal } from './modal.js';
 import { toast } from './toast.js';
 import { icon } from './icons.js';
 import { paintAvatar } from './header.js';
+import { GOOGLE_G, startGoogle } from './auth.js';
 
 const fmtDate = ts => new Date(ts * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -35,7 +36,7 @@ export function fmtAgo(ts) {
 /* ================= routing ================= */
 const SECTIONS = [
   ['profile', 'Profile', 'user'],
-  ['security', 'Password & devices', 'lock'],
+  ['security', 'Sign-in & devices', 'lock'],
   ['data', 'Your data', 'download'],
 ];
 let page = null;       // #account, built on first open
@@ -165,9 +166,24 @@ function wireProfile(main) {
   });
 }
 
-/* ================= password & devices ================= */
+/* ================= sign-in & devices ================= */
 function securityHtml() {
-  return head('Password &amp; devices', 'Keep your account secure and see where you’re signed in.') + `
+  const { u, config } = data;
+  // Google: connected (disconnecting needs a password to fall back on), or offered when the server has it set up
+  const google = u.google ? `
+    <section class="ac-card">
+      <h3>Google</h3>
+      <p class="ac-sub">You can sign in with the Google account <b>${esc(u.google)}</b>.</p>
+      ${u.password ? '<div class="ac-actions"><button class="btn ghost" type="button" data-google-off>Disconnect Google</button></div>'
+        : '<p class="ac-sub ac-tail">To disconnect Google, choose a password first.</p>'}
+    </section>`
+    : config.google ? `
+    <section class="ac-card">
+      <h3>Google</h3>
+      <p class="ac-sub">Sign in with one click using your Google account.</p>
+      <div class="ac-actions"><button class="btn ghost" type="button" data-google-on>${GOOGLE_G}Connect Google</button></div>
+    </section>` : '';
+  const password = u.password ? `
     <section class="ac-card">
       <h3>Change password</h3>
       <p class="ac-sub">Changing it signs you out on every other device.</p>
@@ -177,7 +193,13 @@ function securityHtml() {
         <label class="ac-field"><span>Confirm new password</span><input class="field" type="password" name="confirm" autocomplete="new-password" minlength="8" required></label>
         <div class="ac-actions"><button class="btn" type="submit">Change password</button></div>
       </form>
-    </section>
+    </section>` : `
+    <section class="ac-card">
+      <h3>Password</h3>
+      <p class="ac-sub">You sign in with Google, so your account has no password yet. To also sign in with your email and a password, we’ll email you a link to choose one.</p>
+      <div class="ac-actions"><button class="btn ghost" type="button" data-pass-link>Email me a link</button></div>
+    </section>`;
+  return head('Sign-in &amp; devices', 'Keep your account secure and see where you’re signed in.') + google + password + `
     <section class="ac-card">
       <h3>Signed-in devices</h3>
       <div class="ac-sessions"><p class="ac-sub">Loading…</p></div>
@@ -185,7 +207,7 @@ function securityHtml() {
 }
 
 function wireSecurity(main) {
-  $('[data-pass]', main).addEventListener('submit', async e => {
+  $('[data-pass]', main)?.addEventListener('submit', async e => {
     e.preventDefault();
     const f = new FormData(e.target);
     const current = f.get('current'), next = f.get('next'), confirm = f.get('confirm');
@@ -197,7 +219,40 @@ function wireSecurity(main) {
       drawSessions($('.ac-sessions', main));
     } catch (err) { toast(err.message); }
   });
+  $('[data-pass-link]', main)?.addEventListener('click', async e => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try { toast((await api('auth/password/link', { method: 'POST' })).message); } catch (err) { toast(err.message); }
+    btn.disabled = false;
+  });
+  $('[data-google-on]', main)?.addEventListener('click', e => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    startGoogle({ link: true }).catch(err => { toast(err.message); btn.disabled = false; });
+  });
+  $('[data-google-off]', main)?.addEventListener('click', disconnectGoogle);
   drawSessions($('.ac-sessions', main));
+}
+
+/** Stop signing in with Google; the server asks for the password, the way back in from then on. */
+function disconnectGoogle() {
+  const card = openModal(`
+    <h2>Disconnect Google?</h2>
+    <p>You’ll sign in with your email address and password from now on. Enter your password to confirm.</p>
+    <form>
+      <input class="field" type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+      <div class="m-actions"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn" type="submit">Disconnect</button></div>
+    </form>
+  `);
+  $('input', card).focus();
+  $('form', card).addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      const { user: nu } = await api('auth/google', { method: 'DELETE', body: { password: $('input', card).value } });
+      Object.assign(user, nu); Object.assign(data.u, nu);
+      closeModal(); draw(); toast('Google is disconnected');
+    } catch (err) { toast(err.message); }
+  });
 }
 
 async function drawSessions(box) {
@@ -253,20 +308,29 @@ async function deleteAccountFlow(graceDays) {
     ok: 'Continue', danger: true,
   });
   if (!ok) return;
-  const card = openModal(`
+  // an account without a password (made with Google) confirms by typing its email address instead
+  const { email, password: hasPassword } = data.u;
+  const card = openModal(hasPassword ? `
     <h2>Confirm with your password</h2>
     <p>Enter your password to schedule your account for deletion.</p>
     <form>
       <input class="field" type="password" name="password" placeholder="Password" autocomplete="current-password" required>
       <div class="m-actions"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="submit">Delete my account</button></div>
     </form>
+  ` : `
+    <h2>Confirm with your email</h2>
+    <p>Type <b>${esc(email)}</b> to schedule your account for deletion.</p>
+    <form>
+      <input class="field" type="email" name="email" placeholder="Email address" autocomplete="off" required>
+      <div class="m-actions"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="submit">Delete my account</button></div>
+    </form>
   `);
   $('input', card).focus();
   $('form', card).addEventListener('submit', async e => {
     e.preventDefault();
-    const password = $('input', card).value;
+    const value = $('input', card).value;
     try {
-      const r = await api('account/delete', { method: 'POST', body: { password } });
+      const r = await api('account/delete', { method: 'POST', body: hasPassword ? { password: value } : { email: value } });
       card.innerHTML = `<h2>Account scheduled for deletion</h2>
         <p>Your account will be permanently deleted on <b>${esc(fmtDate(r.deleteAt))}</b>. Signing in again before then cancels it.</p>
         <div class="m-actions"><button class="btn" data-done>OK</button></div>`;

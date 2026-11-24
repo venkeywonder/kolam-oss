@@ -14,6 +14,17 @@ export function toast(msg, actLabel, act) {
   toastEl.hidden = false;
   clearTimeout(toastT); toastT = setTimeout(() => (toastEl.hidden = true), actLabel ? 5000 : 2400);
 }
+/** A small note in the bottom-right corner (⌘S / Ctrl+S): "saved", or what went wrong. */
+let noticeEl = null, noticeT = 0;
+export function notice(msg, ok = true) {
+  noticeEl ||= Object.assign(document.createElement('div'), { id: 'notice', role: 'status' });
+  noticeEl.className = ok ? 'ok' : 'bad';
+  noticeEl.innerHTML = `${icon(ok ? 'check' : 'close', 16)}<span>${esc(msg)}</span>`;
+  document.body.append(noticeEl);
+  // a second press pops it in again rather than leaving it to fade out
+  noticeEl.hidden = true; void noticeEl.offsetWidth; noticeEl.hidden = false;
+  clearTimeout(noticeT); noticeT = setTimeout(() => (noticeEl.hidden = true), 2400);
+}
 
 export function init() {
   $('#undoBtn').innerHTML = icon('undo', 18);

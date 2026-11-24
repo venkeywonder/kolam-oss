@@ -14,7 +14,7 @@ const mq = matchMedia('(prefers-reduced-motion: reduce)');
 export const calm = () => mq.matches;
 
 // heavier cards tilt less and settle slower
-const MASS = { column: 2.6, table: 1.7, doc: 1.4, drawing: 1.3, image: 1.15, sketch: 1.15, board: .85, shortcut: .85, swatch: .8 };
+const MASS = { group: 3, column: 2.6, table: 1.7, doc: 1.4, drawing: 1.3, image: 1.15, sketch: 1.15, board: .85, shortcut: .85, swatch: .8, icon: .7 };
 export const massOf = type => MASS[type] || 1;
 
 /**

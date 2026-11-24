@@ -30,6 +30,7 @@ final class App
             'turnstile' => Config::get('turnstile')['site'] ?: null,
             'site' => Config::get('site_url') ?: null,
             'support' => Config::get('support_email') ?: null,
+            'google' => Google::enabled(),
             'graceDays' => Config::get('delete_grace_days'),
             // Google Analytics for Firebase: the web app config, or null when FIREBASE_* isn't set
             'analytics' => ($fb = Config::get('firebase'))['apiKey'] && $fb['appId'] && $fb['measurementId']
@@ -75,6 +76,9 @@ final class App
         if ($p === 'auth/signup' && $m === 'POST') Http::json(['user' => Auth::signup(Http::input())]);
         if ($p === 'auth/login' && $m === 'POST') Http::json(['user' => Auth::login(Http::input())]);
         if ($p === 'auth/logout' && $m === 'POST') { Auth::logout(); Http::json(['ok' => true]); }
+        // "Continue with Google": start (returns Google's address), and Google's redirect back
+        if ($p === 'auth/google' && $m === 'POST') Http::json(['url' => Google::start(Http::input(), Auth::user())]);
+        if ($p === 'auth/google/callback' && $m === 'GET') Google::callback();
         // forgotten password, and the links in verification / reset emails (they work in any browser, signed in or not)
         if ($p === 'auth/forgot' && $m === 'POST') Http::json(Auth::forgot(Http::input()));
         if ($p === 'auth/reset' && $m === 'POST') Http::json(['user' => Auth::reset(Http::input())]);
@@ -103,6 +107,9 @@ final class App
         $u = Auth::require();
         $space = (string) ($_GET['space'] ?? '') ?: $u['id'];
         if ($p === 'auth/me' && $m === 'PATCH') Http::json(['user' => Auth::update($u, Http::input())]);
+        // sign-in methods: stop using Google, or (no password yet) email a link to choose one
+        if ($p === 'auth/google' && $m === 'DELETE') Http::json(['user' => Google::disconnect($u, Http::input())]);
+        if ($p === 'auth/password/link' && $m === 'POST') Http::json(Auth::passwordLink($u));
         // the account: resend the verification email, export everything, schedule deletion
         if ($p === 'auth/verify/resend' && $m === 'POST') Http::json(Auth::resendVerification($u));
         if ($p === 'account/export' && $m === 'GET') Export::zip($u);

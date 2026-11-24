@@ -3,7 +3,7 @@ import { api } from '../core/api.js';
 import { curveNew, lineStyle, styleOf } from '../core/styles.js';
 import { canvas } from '../core/dom.js';
 import { S, RO, checkpoint, cur, els, freshId, putAsset, save, sel, selLine, serverOK, setFreshId, setSelLine } from '../core/store.js';
-import { toWorld, viewCenter } from '../canvas/viewport.js';
+import { V, toWorld, viewCenter } from '../canvas/viewport.js';
 import { childrenOf, maxZ } from '../core/model.js';
 import { TYPES } from '../cards/types.js';
 import { rebuildCard, renderBoard } from '../canvas/render.js';
@@ -16,6 +16,7 @@ import { embedOf } from '../cards/embeds.js';
 import { icon } from '../ui/icons.js';
 import { appear } from '../canvas/motion.js';
 import { shortcutHere } from '../features/shortcuts.js';
+import { showLogoPicker } from '../cards/icon.js';
 
 /* ================= creating items ================= */
 export function createItem(type, at, opts = {}) {
@@ -64,15 +65,29 @@ export function createFromTool(tool, at, colTarget) {
     case 'image': pendingAt = { pos, extra }; $('#imgPick').click(); return;
     case 'upload': pendingAt = { pos, extra }; $('#filePick').click(); return;
     case 'shortcut': return shortcutHere(pos, extra);
+    case 'icon': return pickNewIcon(pos);
   }
-  if (colTarget && tool === 'column') return toast('Columns can’t go inside columns');
+  if (colTarget && (tool === 'column' || tool === 'group')) return toast(tool === 'group' ? 'Groups can’t go inside columns' : 'Columns can’t go inside columns');
   const it = createItem(tool, pos, extra);
-  if (tool === 'note') { setFreshId(it.id); startEdit(it.id); }
-  else if (tool === 'todo' || tool === 'column') startEdit(it.id);
+  if (tool === 'note' || tool === 'text') { setFreshId(it.id); startEdit(it.id); }
+  else if (tool === 'todo' || tool === 'column' || tool === 'group') startEdit(it.id);
   else if (tool === 'board') { startEdit(it.id); document.execCommand('selectAll'); }
   else if (tool === 'link' || tool === 'comment') $('input', els.get(it.id))?.focus();
   else if (tool === 'sketch' || tool === 'table') startEdit(it.id);
   else if (tool === 'doc') openDoc(it.id);
+}
+/** The Icon tool: choose a logo or icon first, then it lands where the tool was dropped (or in view). */
+function pickNewIcon(pos) {
+  const r = canvas.getBoundingClientRect(), v = V();
+  const sx = r.left + v.x + pos.x * v.z, sy = r.top + v.y + pos.y * v.z;
+  showLogoPicker(sx, sy, {
+    heading: 'Add an icon',
+    onPick: p => {
+      const data = { label: p.title, auto: p.title };
+      if (p.ref) { data.ref = p.ref; if (p.dark) data.dark = p.dark; } else data.asset = p.asset;
+      createItem('icon', pos, { data });
+    },
+  });
 }
 export async function setLink(id, raw) {
   let u = raw.trim();

@@ -10,11 +10,16 @@ namespace Kolam;
  */
 final class Account
 {
-    /** Ask to delete the account; requires the current password. Signs out everywhere right away. */
+    /**
+     * Ask to delete the account; requires the current password, or for an account without one (made with Google) its
+     * email address typed out. Signs out everywhere right away.
+     */
     public static function requestDeletion(array $u, array $in): array
     {
         $row = Db::one('SELECT pass_hash FROM users WHERE id = ?', [$u['id']]) ?? Http::fail(404, 'Account not found');
-        if (!password_verify((string) ($in['password'] ?? ''), $row['pass_hash'])) Http::fail(403, 'Your password is wrong');
+        if ($row['pass_hash'] === '') {
+            if (strtolower(trim((string) ($in['email'] ?? ''))) !== strtolower($u['email'])) Http::fail(403, 'Type your email address exactly as shown');
+        } elseif (!password_verify((string) ($in['password'] ?? ''), $row['pass_hash'])) Http::fail(403, 'Your password is wrong');
         RateLimit::hit('delete-req:' . $u['id'], 5, 3600);
         $deleteAt = time() + Config::get('delete_grace_days') * 86400;
         Db::tx(function () use ($u, $deleteAt) {
@@ -28,7 +33,7 @@ final class Account
         return ['ok' => true, 'deleteAt' => $deleteAt];
     }
 
-    /** Called from Auth::login and Auth::reset: signing in again means the person changed their mind. */
+    /** Called from Auth::login, Auth::reset and Google sign-in: signing in again means the person changed their mind. */
     public static function cancelDeletion(string $userId): bool
     {
         $row = Db::one('SELECT delete_at FROM users WHERE id = ?', [$userId]);
@@ -137,11 +142,10 @@ final class Account
               . "If this wasn't you, or you change your mind, just sign in again before then and the deletion is cancelled.\n\n"
               . "If you own a workspace with other people in it, it will automatically pass to one of them.\n";
         $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-        $html = '<div style="font-family:-apple-system,Segoe UI,Inter,Arial,sans-serif;font-size:15px;line-height:1.5;color:#1b2536;max-width:520px">'
-              . '<p>Hi ' . $e($u['name']) . ',</p>'
+        $html = '<p>Hi ' . $e($u['name']) . ',</p>'
               . '<p>Your Kolam account will be permanently deleted on <b>' . $e($when) . '</b>.</p>'
               . '<p>If this wasn\'t you, or you change your mind, just sign in again before then and the deletion is cancelled.</p>'
-              . '<p>If you own a workspace with other people in it, it will automatically pass to one of them.</p></div>';
-        Mailer::send($u['email'], $subject, $text, $html);
+              . '<p>If you own a workspace with other people in it, it will automatically pass to one of them.</p>';
+        Mailer::send($u['email'], $subject, $text, Emails::layout($subject, $html));
     }
 }

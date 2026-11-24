@@ -18,6 +18,7 @@ import { isDark } from '../ui/theme.js';
 import { updateBadges } from '../ui/drawer.js';
 import { paintEditing, paintPresence } from '../ui/presence.js';
 import { badgeHtml, mountBadge, paintButton } from '../features/comments.js';
+import { drawOrder } from '../cards/group.js';
 
 // one connection dot in the middle of each side; dragging one starts a line pinned to that point
 const CONN_DOTS = ['top', 'right', 'bottom', 'left'].map(s => `<div class="conn" data-side="${s}" title="Drag to connect"></div>`).join('');
@@ -38,7 +39,7 @@ export function renderBoard() {
   const keepEdit = editingId;
   itemsLayer.innerHTML = ''; els.clear();
   const frag = document.createDocumentFragment();
-  const tops = itemsOf(cur).filter(i => !i.col || !S.items[i.col]).sort((a, b) => (a.z || 0) - (b.z || 0));
+  const tops = itemsOf(cur).filter(i => !i.col || !S.items[i.col]).sort(drawOrder);
   for (const it of tops) {
     if (it.col && !S.items[it.col]) it.col = null; // orphan safety
     let el;
@@ -74,7 +75,7 @@ export function makeCard(it) {
   if (it.locked) el.classList.add('locked');
   applyAlign(el, it);
   if (it.col) el.classList.add('in-col');
-  else el.style.width = (it.w || T.w) + 'px';
+  else if (it.w || T.w) el.style.width = (it.w || T.w) + 'px';   // text with no width fits its words (cards/text.js)
   if (T.resizeH && !it.col) el.style.height = (it.h || T.h) + 'px';
   else if (T.fitH && it.h && !it.col) el.style.minHeight = it.h + 'px';
   el.innerHTML = T.html(it) + CONN_DOTS + (it.col || it.locked ? '' : resizeHandles(T)) + (it.locked ? `<div class="lock-badge" title="Locked">${icon('lock', 11)}</div>` : '') + badgeHtml(it);

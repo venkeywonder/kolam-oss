@@ -89,6 +89,49 @@ body.resizing,body.resizing *{cursor:var(--rz-cursor)!important;user-select:none
 .card.dark .rt a{color:#ffab8a}
 .rt code{background:var(--chip);border-radius:4px;padding:1px 4px;font-size:.92em}
 .t-note .note-body{padding:18px 22px;min-height:52px}
+/* text (cards/text.js): words straight on the board; a faint outline on hover, the selection ring when selected */
+.card.t-text{background:var(--tx-bg,transparent);box-shadow:none;color:var(--tx-ink,var(--ink));font-family:var(--tx-font,var(--font));font-size:var(--tx-size,20px);line-height:1.3;min-width:24px}
+.card.t-text:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--select) 30%,transparent)}
+.card.t-text:is(.selected,.editing){box-shadow:0 0 0 2px var(--select)}
+.card.t-text.dragging{box-shadow:none}
+.card.t-text.tx-fill.dragging{box-shadow:var(--shadow-lift)}
+.tx-body{padding:2px 4px;min-height:1.3em;outline:none;overflow-wrap:anywhere}
+.t-text.tx-fill .tx-body{padding:.45em .75em}
+.t-text.tx-b .tx-body{font-weight:700}
+.t-text.tx-i .tx-body{font-style:italic}
+.t-text.tx-u .tx-body{text-decoration:underline;text-underline-offset:.14em}
+/* icons (cards/icon.js): a logo straight on the board; the card is the icon's square, its name hangs underneath */
+.card.t-icon{background:none;box-shadow:none;border-radius:6px}
+.card.t-icon:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--select) 30%,transparent)}
+.card.t-icon:is(.selected,.editing){box-shadow:0 0 0 2px var(--select)}
+.card.t-icon.dragging{box-shadow:none}
+.ic-art{aspect-ratio:1;display:grid;place-items:center;overflow:hidden;border-radius:inherit}
+.ic-art>img,.ic-art svg,.ic-lucide{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.ic-lucide>.bd-lucide{display:block;width:100%!important;height:100%!important}
+.ic-label{position:absolute;top:calc(100% + 5px);left:50%;translate:-50% 0;width:max-content;max-width:max(150px,100%);text-align:center;font-size:12.5px;font-weight:500;line-height:1.3;color:var(--ink);outline:none;overflow-wrap:anywhere}
+.ic-label:empty:not([contenteditable=true]){display:none}
+.ic-label:empty::before{content:attr(data-ph);color:var(--faint)}
+.t-icon .ic-label[contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text;min-width:40px;background:var(--card);box-shadow:0 0 0 1.5px var(--ink);border-radius:3px;padding:0 3px}
+/* black logos turn white on a dark board */
+[data-theme=dark] .ic-inv{filter:invert(1) hue-rotate(180deg)}
+/* groups (cards/group.js): a box under the other cards; its label moves it and its edges resize it, the rest lets clicks through */
+.card.t-group{background:color-mix(in srgb,var(--grp) 5%,transparent);box-shadow:none;border:1.5px dashed var(--grp);border-radius:var(--r,2px);pointer-events:none;cursor:default}
+.card.t-group.grp-solid{border-style:solid}
+.t-group :is(.grp-head,.rz,.conn,.lock-badge){pointer-events:auto}
+.t-group:has(.grp-head:hover){background:color-mix(in srgb,var(--grp) 9%,transparent)}
+.card.t-group:is(.selected,.editing){box-shadow:0 0 0 2px var(--select)}
+.card.t-group.dragging{box-shadow:var(--shadow-lift);background:color-mix(in srgb,var(--grp) 10%,var(--canvas) 70%)}
+.grp-head{position:absolute;left:-1.5px;top:-1.5px;max-width:calc(100% + 3px);display:flex;align-items:center;gap:7px;padding:5px 11px 5px 8px;background:var(--grp);color:#fff;border-radius:var(--r,2px) 0 8px 0;font-size:13px;font-weight:600;line-height:1.3;cursor:grab}
+.grp-ic{flex:none;width:20px;height:20px;display:grid;place-items:center;background:#fff;border-radius:4px;overflow:hidden}
+.grp-ic>*{width:100%;height:100%;object-fit:contain}
+.grp-ic .ic-lucide{padding:2px}
+.grp-title{outline:none;min-width:2em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grp-title:empty::before{content:attr(data-ph);opacity:.75}
+.grp-title[contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text;text-overflow:clip;white-space:pre-wrap}
+.tx-body p{margin:0}
+.tx-body :is(h1,h2){font-family:inherit;margin:0 0 .2em}
+.tx-body h1{font-size:1.6em;line-height:1.15}
+.tx-body h2{font-size:1.3em;line-height:1.2}
 /* to-do */
 .t-todo{padding:16px 20px 14px}
 .todo-title{font:700 15px/1.4 var(--serif);margin-bottom:8px;outline:none}
@@ -148,6 +191,12 @@ li:hover .due-add{opacity:1}
 .t-image .im img.loaded,.t-image .im img[src^="data:"]{opacity:1}
 .t-image .cap{padding:10px 14px;font-size:13px;background:var(--card-bg,var(--card))}
 .t-image .cap:empty:not([contenteditable=true]){display:none}
+/* a picture with transparent parts (cards/types.js) sits straight on the board: no card colour or frame, only the selection ring */
+.card.t-image.see-through{background:none;border-color:transparent}
+.card.t-image.see-through:not(.selected,.editing){box-shadow:none}
+.card.t-image.see-through:is(.selected,.editing){box-shadow:0 0 0 2px var(--select)}
+.card.t-image.see-through.dragging{box-shadow:none}
+.card.t-image.see-through.dragging img{filter:drop-shadow(0 12px 16px rgba(27,37,54,.3))}
 /* file + media */
 .fl{display:flex;align-items:center;gap:12px;padding:14px}
 .fl-ic{width:40px;height:48px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:700;display:grid;place-items:center;text-transform:uppercase;flex:none}
@@ -176,6 +225,9 @@ li:hover .due-add{opacity:1}
 .sc-badge svg{stroke-width:2.4}
 .bd-noaccess .sc-badge{background:var(--muted)}
 .sc-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* an uploaded picture fills the board tile (cards/board-icon.js) */
+.bd-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;pointer-events:none}
+.bd-lucide{display:block}
 /* column */
 .t-column{background:var(--card-bg,var(--card));padding:0 7px 1px}
 .col-head{position:relative;display:flex;flex-direction:column;align-items:center;padding:16px 26px 14px}
@@ -217,7 +269,13 @@ li:hover .due-add{opacity:1}
 .sk-tools button.on{box-shadow:inset 0 0 0 2px var(--ink)}
 .sk-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--faint);pointer-events:none;font-size:13px}
 /* swatch */
-.sw{height:110px}
+.sw{height:110px;position:relative}
+/* the colour picker on the card itself (double-clicking the card opens it too) */
+.sw-pick{position:absolute;left:50%;top:50%;margin:-15px 0 0 -15px;width:30px;height:30px;border:0;border-radius:50%;padding:0;display:grid;place-items:center;background:var(--menu);color:var(--ink);box-shadow:var(--shadow-card);cursor:pointer;opacity:0;scale:.85;transition:opacity .15s,scale .2s var(--spring)}
+.t-swatch:is(:hover,.selected) .sw-pick,.sw-pick:focus-visible{opacity:1;scale:1}
+.sw-pick:hover{background:var(--hover)}
+.viewonly .sw-pick,.t-swatch.locked .sw-pick,.t-swatch.dragging .sw-pick{display:none}
+@media (hover:none){.sw-pick{opacity:1;scale:1}}
 .t-swatch:not(.in-col){display:flex;flex-direction:column}
 .t-swatch:not(.in-col)>.sw{flex:1 0 auto}
 .sw-hex{padding:9px 12px;font-weight:600;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.03em;text-transform:uppercase}
@@ -255,7 +313,7 @@ li:hover .due-add{opacity:1}
 .t-drawing.selected{outline:1.5px dashed var(--select);outline-offset:4px}
 .t-drawing>.conn,.t-drawing>.lock-badge{pointer-events:auto}
 /* text alignment (cards/align.js): only the card's own text, never cards inside a column */
-.t-note[data-align]>.note-body,.t-todo[data-align]>:is(.todo-title,ul),.t-comment[data-align] .cm-text,.t-image[data-align]>.cap,
+.t-text[data-align]>.tx-body,.t-note[data-align]>.note-body,.t-todo[data-align]>:is(.todo-title,ul),.t-comment[data-align] .cm-text,.t-image[data-align]>.cap,
 .t-table[data-align] .tb td,.t-doc[data-align] .dc-main,.doc-page[data-align] :is(.doc-title,.doc-body){text-align:var(--ta)}
 .t-column[data-align]>.col-head{align-items:stretch;text-align:var(--ta)}
 .t-column[data-align]>.col-head>.col-title{text-align:inherit}

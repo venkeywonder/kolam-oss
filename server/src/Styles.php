@@ -11,14 +11,16 @@ namespace Kolam;
  *   board:  bg, corners (new boards)
  *   sketch: pen (pen colour), color
  *   table:  header, color
- *   note, todo, column, comment, image (caption), table, doc: align (text alignment), color
+ *   text:   font, size, b, i, u (bold, italic, underline), ink (#hex text colour), bg (fill: a colour key or #hex)
+ *   text, note, todo, column, comment, image (caption), table, doc: align (text alignment), color
+ *   group:  solid (a solid border instead of dashes), color
  *   every other card type: color
  */
 final class Styles
 {
     public const COLORS = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'dark'];
-    private const CARDS = ['note', 'todo', 'link', 'image', 'file', 'board', 'shortcut', 'column', 'comment', 'table', 'doc', 'swatch', 'sketch', 'drawing'];
-    public const ALIGNABLE = ['note', 'todo', 'column', 'comment', 'image', 'table', 'doc'];
+    private const CARDS = ['text', 'note', 'todo', 'link', 'image', 'file', 'board', 'shortcut', 'column', 'comment', 'table', 'doc', 'swatch', 'sketch', 'drawing', 'icon', 'group'];
+    public const ALIGNABLE = ['text', 'note', 'todo', 'column', 'comment', 'image', 'table', 'doc'];
     public const ALIGNS = ['left', 'center', 'right', 'justify'];
     private const FIELDS = [
         'line' => ['route' => ['straight', 'curved', 'elbow'], 'arrow' => 'bool', 'arrowStart' => 'bool',
@@ -26,6 +28,8 @@ final class Styles
         'board' => ['bg' => ['dots', 'grid', 'plain'], 'corners' => ['sharp', 'curved', 'rounded']],
         'sketch' => ['pen' => 'hex'],
         'table' => ['header' => 'bool'],
+        'text' => ['font' => ['serif', 'mono', 'hand'], 'size' => 'size', 'b' => 'bool', 'i' => 'bool', 'u' => 'bool', 'ink' => 'hex', 'bg' => 'paint'],
+        'group' => ['solid' => 'bool'],
     ];
 
     public static function get(string $userId): array
@@ -57,6 +61,8 @@ final class Styles
                     $rule === null => false,
                     $rule === 'bool' => is_bool($v),
                     $rule === 'hex' => is_string($v) && preg_match('/^#[0-9a-f]{6}$/i', $v),
+                    $rule === 'size' => is_int($v) && $v >= 8 && $v <= 200,
+                    $rule === 'paint' => is_string($v) && (preg_match('/^#[0-9a-f]{6}$/i', $v) || in_array($v, self::COLORS, true)),
                     default => in_array($v, $rule, true),
                 };
                 if ($ok) $out[$kind][$k] = $v;

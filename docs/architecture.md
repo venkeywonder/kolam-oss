@@ -21,16 +21,25 @@ src/
                         board background/corners you picked become the defaults for new ones (saved to your account,
                         server/src/Styles.php; the AI tools use them too); "Reset styles for new elements" in the ⋯ menu
   vendor/yjs.js         Yjs 13.6 + lib0 bundled into one ES module (MIT); no build step needed
+  vendor/lucide.json    Lucide 1.78 icons (ISC, vendor/lucide.LICENSE) as {name: [svg body, tags]}; loaded only for board icons and icons
+  vendor/logos/         logos for the Icon element, built by scripts/build-logos.mjs: index.json (packs > groups > icons, loaded when
+                        the picker opens) and one SVG per logo (loaded as an <img> only when on screen): dev/ Devicon (MIT),
+                        brand/ Simple Icons (CC0), aws/ AWS Architecture Icons (AWS's terms, for diagrams; see vendor/logos/README.md)
   canvas/               viewport (pan/zoom), rendering, selection, drag & drop, lines, snapping,
                         resize.js (every edge and corner, within each card type's min/max width; size badge, snapping,
                         Shift keeps the shape, Alt from the centre,
                         double-click a handle for the usual size),
                         motion.js (drag & drop animation: sway, landing, gliding into columns, flying into boards;
                         all off with the system's "reduce motion" setting)
-  cards/                card types: types.js (note, to-do, link, image, file, board, column, comment,
-                        sketch, swatch) + table, doc, drawing, embeds, extras, corners (a board setting in the View menu:
+  cards/                card types: types.js (text, note, to-do, link, image, file, board, column, comment,
+                        sketch, swatch, icon, group) + text (text straight on the board: font, size, bold/italic/underline, colour, fill;
+                        as wide as its words until resized), table, doc, drawing, embeds, extras, board-icon (a board card's icon: any emoji, any
+                        Lucide icon, or an uploaded picture cropped to a square and stored at 216 × 216),
+                        icon (a logo straight on the board with a label under it, and the icon picker: logos by area, AWS by
+                        service category, Lucide icons or an upload), group (a labelled box under the cards; moving it moves what's
+                        wholly inside), corners (a board setting in the View menu:
                         sharp / curved / rounded for every card on that board; boards inside keep their own),
-                        align (text alignment of notes, to-dos, columns, comments, image captions, tables and documents:
+                        align (text alignment of text, notes, to-dos, columns, comments, image captions, tables and documents:
                         Align in the toolbar, or the alignment button in the formatting bar / document editor)
   actions/              create, delete/duplicate/clipboard, move between boards
   ui/                   header & menus, toolbar (+ contextual mode), toasts, modals, search, drawer,
@@ -63,6 +72,8 @@ server/
   router.php            router for PHP's built-in server (local testing)
 storage/                SQLite database + uploads (created at runtime; never web-accessible)
 deploy/                 example nginx / Apache / php.ini / cron files
+scripts/build-logos.mjs  rebuilds src/vendor/logos from the simple-icons and devicon npm packages and AWS's Architecture Icons
+                        Asset Package (https://aws.amazon.com/architecture/icons/); usage at the top of the file
 ```
 
 ## How sync works
@@ -115,6 +126,13 @@ Then add a toolbar entry in `src/ui/toolbar.js` and a tile drawing in `src/ui/to
 ## Security notes
 
 - Passwords are hashed with `password_hash`. Sessions are random tokens stored hashed, in HttpOnly SameSite cookies, marked Secure on HTTPS.
+- "Continue with Google" (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) runs entirely on the server: the OpenID Connect
+  authorization code flow with PKCE, a nonce, and a single-use state tied to the browser by an HttpOnly cookie (no
+  login CSRF). The code is exchanged with Google directly over TLS, and the ID token's issuer, audience, expiry, nonce
+  and verified email are checked. A Google account is matched by its stable subject id, else linked to the account
+  with the same address. If that address was never verified, linking first removes its password, sessions and AI
+  tokens, so someone who registered another person's address can't keep access. Every link sends a notice email.
+  Accounts made with Google have no password until their owner sets one through the emailed reset link.
 - Every state-changing request needs an `X-Requested-With: kolam` header, which blocks cross-site form posts.
 - Sign-in, sign-up and link-preview requests are rate-limited.
 - Uploaded files are served with a sandboxing Content-Security-Policy. Non-media types are forced to download, so uploads can never run as pages on your domain.

@@ -92,11 +92,10 @@ final class Invites
         $text = "{$u['name']} ({$u['email']}) invited you to {$what} on Kolam as {$roleName}.\n\n"
               . "Open this link to accept:\n$link\n\nThe invitation expires in $days days. If you weren’t expecting it, you can ignore this email.\n";
         $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-        $html = '<div style="font-family:-apple-system,Segoe UI,Inter,Arial,sans-serif;font-size:15px;line-height:1.5;color:#1b2536;max-width:520px">'
-              . '<p><b>' . $e($u['name']) . '</b> (' . $e($u['email']) . ') invited you to ' . $e($what) . ' on Kolam as ' . $e($roleName) . '.</p>'
+        $html = '<p><b>' . $e($u['name']) . '</b> (' . $e($u['email']) . ') invited you to ' . $e($what) . ' on Kolam as ' . $e($roleName) . '.</p>'
               . '<p style="margin:24px 0"><a href="' . $e($link) . '" style="background:#1b2536;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;display:inline-block">Open invitation</a></p>'
-              . '<p style="color:#5b6575;font-size:13px">The invitation expires in ' . $days . ' days. If you weren’t expecting it, you can ignore this email.</p></div>';
-        $emailed = Mailer::send($inv['email'], $subject, $text, $html);
+              . '<p style="color:#5b6575;font-size:13px">The invitation expires in ' . $days . ' days. If you weren’t expecting it, you can ignore this email.</p>';
+        $emailed = Mailer::send($inv['email'], $subject, $text, Emails::layout($subject, $html));
         return ['invite' => self::public($inv), 'link' => $link, 'emailed' => $emailed, 'mail' => Mailer::configured()];
     }
 

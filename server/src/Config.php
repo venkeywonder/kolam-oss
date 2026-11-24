@@ -73,6 +73,8 @@ final class Config
                 'appId'         => self::env('FIREBASE_APP_ID', ''),
                 'measurementId' => self::env('FIREBASE_MEASUREMENT_ID', ''),
             ],
+            // "Continue with Google" (OAuth client from Google Cloud console → APIs & Services → Credentials); empty = off
+            'google'             => ['id' => self::env('GOOGLE_CLIENT_ID', ''), 'secret' => self::env('GOOGLE_CLIENT_SECRET', '')],
         ];
     }
 

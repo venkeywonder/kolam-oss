@@ -8,12 +8,14 @@ final class BoardTools
 {
     private const UNSORTED = '__unsorted';
     private const COLORS = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'dark'];
-    private const CREATABLE = ['note', 'todo', 'link', 'column', 'board', 'shortcut', 'table', 'doc', 'comment', 'swatch'];
-    private const WIDTH = ['note' => 260, 'todo' => 260, 'link' => 280, 'column' => 280, 'board' => 150, 'table' => 380,
-                           'doc' => 260, 'comment' => 260, 'swatch' => 140, 'image' => 300, 'file' => 260, 'sketch' => 320, 'drawing' => 200, 'shortcut' => 150];
-    private const LABEL = ['note' => 'Note', 'todo' => 'To-do', 'link' => 'Link', 'column' => 'Column', 'board' => 'Board', 'table' => 'Table',
+    private const CREATABLE = ['text', 'note', 'todo', 'link', 'column', 'board', 'shortcut', 'table', 'doc', 'comment', 'swatch'];
+    // text has no width of its own: it fits its words until resized
+    private const WIDTH = ['text' => null, 'note' => 260, 'todo' => 260, 'link' => 280, 'column' => 280, 'board' => 150, 'table' => 380,
+                           'doc' => 260, 'comment' => 260, 'swatch' => 140, 'image' => 300, 'file' => 260, 'sketch' => 320, 'drawing' => 200, 'shortcut' => 150,
+                           'icon' => 64, 'group' => 480];
+    private const LABEL = ['text' => 'Text', 'note' => 'Note', 'todo' => 'To-do', 'link' => 'Link', 'column' => 'Column', 'board' => 'Board', 'table' => 'Table',
                            'doc' => 'Document', 'comment' => 'Comment', 'swatch' => 'Colour', 'image' => 'Image', 'file' => 'File',
-                           'sketch' => 'Sketch', 'drawing' => 'Drawing', 'shortcut' => 'Shortcut'];
+                           'sketch' => 'Sketch', 'drawing' => 'Drawing', 'shortcut' => 'Shortcut', 'icon' => 'Icon', 'group' => 'Group'];
     private const BACKGROUNDS = ['dots', 'grid', 'plain'];
     private const CORNERS = ['sharp', 'curved', 'rounded'];
 
@@ -24,7 +26,8 @@ final class BoardTools
         Kolam is a visual workspace: boards hold cards placed on an infinite canvas (x/y in pixels, x grows right, y grows down).
         Card types: note (rich text), todo (checklist), link, column (a vertical list that holds other cards), board (a card that opens a
         sub-board), shortcut (a card that jumps to any board in the space, however deep; deleting or moving it never touches that board),
-        table, doc (long document), comment, swatch (colour), plus image, file, sketch and drawing which you can read but not create.
+        table, doc (long document), comment, swatch (colour), plus image, file, sketch, drawing, icon (a logo with a label) and group
+        (a labelled box drawn around cards, e.g. a VPC in an architecture diagram) which you can read but not create.
         Boards live in a space: your own space has "home" as its top board, with "__unsorted" as the inbox drawer for cards not on a board
         yet. Other spaces (a team workspace, or a board someone shared with you) have their own top board instead of "home"; call
         list_boards to see them, then pass their id as "space" to every tool call that should act there. Without "space" you see your own boards.
@@ -269,7 +272,7 @@ final class BoardTools
         if (!empty($i['locked'])) $o['locked'] = true;
         if (!empty($i['align'])) $o['align'] = $i['align'];
         switch ($i['type']) {
-            case 'note': $o['text'] = Text::plain($d['html'] ?? ''); break;
+            case 'note': case 'text': $o['text'] = Text::plain($d['html'] ?? ''); break;
             case 'todo':
                 $o['title'] = $d['title'] ?? '';
                 $o['tasks'] = array_map(fn($t) => array_filter(['id' => $t['id'] ?? '', 'text' => $t['t'] ?? '', 'done' => !empty($t['done']),
@@ -281,7 +284,9 @@ final class BoardTools
             case 'board':
                 $t = $d['target'] ?? '';
                 $o += ['board_id' => $t, 'title' => $w->boards[$t]['title'] ?? 'Missing board', 'cards' => count($w->itemsOf($t))];
-                if (!empty($d['emoji'])) $o['icon'] = $d['emoji'];
+                if (!empty($d['asset'])) $o['icon'] = 'uploaded image';
+                elseif (!empty($d['icon'])) $o['icon'] = 'icon: ' . $d['icon'];
+                elseif (!empty($d['emoji'])) $o['icon'] = $d['emoji'];
                 break;
             case 'shortcut':
                 $t = $d['target'] ?? '';
@@ -296,6 +301,8 @@ final class BoardTools
             case 'table': $o['rows'] = $d['rows'] ?? []; break;
             case 'doc': $o += ['title' => $d['title'] ?? '', 'text' => Text::plain($d['html'] ?? '')]; break;
             case 'swatch': $o['hex'] = $d['hex'] ?? ''; break;
+            case 'icon': $o += array_filter(['label' => $d['label'] ?? '', 'logo' => $d['ref'] ?? (!empty($d['asset']) ? 'uploaded image' : '')]); break;
+            case 'group': $o['title'] = $d['title'] ?? ''; break;
         }
         // comments on any card, as "Name: text"
         $c = self::comments($w);
@@ -344,7 +351,7 @@ final class BoardTools
     {
         $d = $i['data'] ?? [];
         return trim(match ($i['type']) {
-            'note' => Text::plain($d['html'] ?? ''),
+            'note', 'text' => Text::plain($d['html'] ?? ''),
             'todo' => ($d['title'] ?? '') . "\n" . implode("\n", array_map(fn($t) => $t['t'] ?? '', $d['tasks'] ?? [])),
             'link' => ($d['title'] ?? '') . ' ' . ($d['url'] ?? ''),
             'image' => Text::plain($d['caption'] ?? ''),
@@ -355,6 +362,8 @@ final class BoardTools
             'table' => implode("\n", array_map(fn($r) => implode(' | ', array_map('strval', (array) $r)), $d['rows'] ?? [])),
             'doc' => ($d['title'] ?? '') . "\n" . Text::plain($d['html'] ?? ''),
             'swatch' => $d['hex'] ?? '',
+            'icon' => $d['label'] ?? '',
+            'group' => $d['title'] ?? '',
             default => '',
         });
     }
@@ -440,7 +449,7 @@ final class BoardTools
         if (array_key_exists('text', $a)) {
             $md = self::str($a['text'], 200000);
             match ($type) {
-                'note', 'doc' => $d['html'] = Text::html($md),
+                'note', 'doc', 'text' => $d['html'] = Text::html($md),
                 'image' => $d['caption'] = Text::html($md),
                 'comment' => $md === '' ? null : self::commentLater($w, $u, $it['id'], $md),
                 default => throw new ToolError("A $type card has no text; use title, tasks, rows or url instead"),
@@ -567,7 +576,7 @@ final class BoardTools
                 $n['z'] = ++$z;
                 if ($bid === self::UNSORTED) $n['order'] = (int) (microtime(true) * 1000) + $z;
             }
-            if ($n['type'] === 'board') $n['data'] = ['target' => self::cloneBoard($w, $src['data']['target'] ?? '', $bid)] + array_intersect_key($src['data'] ?? [], ['emoji' => 1]);
+            if ($n['type'] === 'board') $n['data'] = ['target' => self::cloneBoard($w, $src['data']['target'] ?? '', $bid)] + array_intersect_key($src['data'] ?? [], ['emoji' => 1, 'icon' => 1, 'asset' => 1]);
             $w->putItem($n);
         }
         $end = fn(array $e) => isset($e['item']) ? (isset($map[$e['item']]) ? ['item' => $map[$e['item']]] + $e : null)
@@ -714,6 +723,8 @@ final class BoardTools
             if (array_key_exists('icon', $a)) {
                 $icon = self::str($a['icon'], 16);
                 if (mb_strlen($icon) > 4) throw new ToolError('icon must be a single emoji');
+                // an emoji replaces an icon or picture picked in the app
+                unset($card['data']['icon'], $card['data']['asset']);
                 if ($icon === '') unset($card['data']['emoji']); else $card['data']['emoji'] = $icon;
                 $w->putItem($card);
             }
@@ -773,7 +784,7 @@ final class BoardTools
         $title = self::str($c['title'] ?? '', 200);
         $text = self::str($c['text'] ?? '', 200000);
         return match ($type) {
-            'note' => ['html' => Text::html($text)],
+            'note', 'text' => ['html' => Text::html($text)],
             'todo' => ['title' => $title, 'tasks' => self::tasks($c['tasks'] ?? [])],
             'link' => self::linkData((string) ($c['url'] ?? ''), $title),
             'column' => ['title' => $title],

@@ -34,3 +34,19 @@ export function perFrame(fn) {
 }
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/** Does a loaded picture have transparent parts? (False for a picture from another site, which can't be read.) */
+const seen = new Map();
+export function seeThrough(img) {
+  const src = img.currentSrc || img.src;
+  if (seen.has(src)) return seen.get(src);
+  let clear = false;
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, 64, 64);
+    const d = g.getImageData(0, 0, 64, 64).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] < 250) { clear = true; break; }
+  } catch {}
+  seen.set(src, clear);
+  return clear;
+}

@@ -30,9 +30,9 @@ import { init as init_verify_banner } from './ui/verify-banner.js';
 import { init as init_onboarding } from './features/onboarding.js';
 import { $, uid } from './core/util.js';
 import { api } from './core/api.js';
-import { initAnalytics, setAnalyticsUser, trackAppEvents } from './core/analytics.js';
+import { initAnalytics, setAnalyticsUser, track, trackAppEvents } from './core/analytics.js';
 import { showConsentBanner } from './ui/consent.js';
-import { showAuth, showReset } from './ui/auth.js';
+import { googleError, showAuth, showReset } from './ui/auth.js';
 import { LINK, ROOT, S, VIEW, load, parseHash, save, setCur, setROOT, setS, setSPACE } from './core/store.js';
 import { setUser, sharedState } from './core/sync.js';
 import { loadStyles } from './core/styles.js';
@@ -109,6 +109,17 @@ init_ui_notify();
     let fresh = false;   // signed in just now, from an invitation
     let restored = false;
     let authMessage = '';
+    // back from Google (server/src/Google.php): ?google=signup|login|linked (&restored=1), or ?gerr=<why>; then tidy the address
+    const google = q.get('google'), googleErr = q.get('gerr');
+    if (google || googleErr) {
+      if (q.get('restored')) restored = true;
+      for (const k of ['google', 'gerr', 'restored']) q.delete(k);
+      history.replaceState(null, '', location.pathname + (q.size ? '?' + q : '') + location.hash);
+      if (google === 'signup' || google === 'login') { fresh = true; track(google === 'signup' ? 'sign_up' : 'login', { method: 'google' }); }
+      if (google === 'linked') toast('Google is connected. You can sign in with it from now on.');
+      const msg = googleErr ? googleError(googleErr) : '';
+      if (msg && me.user) toast(msg); else authMessage = msg;
+    }
     if (resetToken) {
       const user = await showReset(resetToken);
       if (user.restored) restored = true;

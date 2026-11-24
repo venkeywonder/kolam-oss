@@ -77,7 +77,7 @@ final class History
         $x = is_array($d['data'] ?? null) ? $d['data'] : [];
         $str = fn($k) => is_string($x[$k] ?? null) ? $x[$k] : '';
         $t = match ($d['type'] ?? '') {
-            'note', 'image' => Text::plain($str($d['type'] === 'note' ? 'html' : 'caption')),
+            'note', 'text', 'image' => Text::plain($str($d['type'] === 'image' ? 'caption' : 'html')),
             'todo' => $str('title') ?: implode(', ', array_map(fn($t) => is_array($t) ? (string) ($t['t'] ?? '') : '', array_slice((array) ($x['tasks'] ?? []), 0, 3))),
             'link' => $str('title') ?: $str('url'),
             'file' => $str('name'),
@@ -85,6 +85,8 @@ final class History
             'doc' => $str('title') ?: Text::plain($str('html')),
             'table' => implode(' · ', array_map('strval', array_slice((array) (((array) ($x['rows'] ?? []))[0] ?? []), 0, 4))),
             'swatch' => $str('hex'),
+            'icon' => $str('label'),
+            'group' => $str('title'),
             default => '',
         };
         $t = trim(preg_replace('/\s+/u', ' ', $t) ?? '');

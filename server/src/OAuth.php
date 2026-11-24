@@ -12,6 +12,8 @@ namespace Kolam;
 final class OAuth
 {
     private const CODE_SECS = 600;
+    /** Google's "G" for the Continue with Google button (the same as in src/ui/auth.js). */
+    private const GOOGLE_G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
 
     public static function route(string $m, string $p): never
     {
@@ -96,9 +98,14 @@ final class OAuth
         }
 
         $u = Auth::user();
-        $err = '';
+        $err = isset($q['gerr']) ? 'Signing in with Google didn’t work. Try again, or use your email and password.' : '';
         if ($m === 'POST') {
             self::sameOrigin();
+            // "Continue with Google": sign in there, then come back to this page signed in
+            if (($q['decision'] ?? '') === 'google' && !$u) {
+                header('Location: ' . Google::start([], null, (string) ($_SERVER['QUERY_STRING'] ?? '')), true, 302);
+                exit;
+            }
             if (($q['decision'] ?? '') !== 'allow') $back(['error' => 'access_denied']);
             try { $u ??= self::signIn($q); } catch (HttpError $e) { $err = $e->getMessage(); }
             if ($u) {
@@ -192,12 +199,16 @@ final class OAuth
 
     private static function consent(string $title, string $text, ?array $u, string $err): never
     {
+        // its own form, ahead of the sign-in form, so Enter in the password field still means "Sign in and allow"
+        $google = !$u && Google::enabled()
+            ? '<form method="post" class="auth-alt"><button class="auth-google" name="decision" value="google">' . self::GOOGLE_G . 'Continue with Google</button></form><p class="auth-or"><span>or</span></p>'
+            : '';
         $fields = $u
             ? '<p class="oa-who">Signed in as ' . self::h($u['email']) . '</p>'
             : '<label>Email<input type="email" name="email" autocomplete="username" required autofocus></label>' .
               '<label>Password<input type="password" name="password" autocomplete="current-password" required></label>';
         self::page(strip_tags($title),
-            "<h1>$title</h1><p class=\"auth-sub\">$text</p>" .
+            "<h1>$title</h1><p class=\"auth-sub\">$text</p>" . $google .
             '<form method="post">' . $fields . '<p class="auth-err">' . self::h($err) . '</p>' .
             '<div class="oa-row"><button class="auth-btn" name="decision" value="allow">' . ($u ? 'Allow' : 'Sign in and allow') . '</button>' .
             '<button class="auth-btn oa-no" name="decision" value="deny" formnovalidate>Cancel</button></div></form>');
@@ -227,7 +238,7 @@ final class OAuth
             .auth-btn.oa-no{background:var(--hover);color:var(--ink)}
             </style>
             </head><body><div id="auth"><div class="auth-card">
-            <div class="auth-logo"><svg viewBox="12.5 12.5 231 231" width="28" height="28" aria-hidden="true"><path d="M128 128V78A50 50 0 1 0 78 128H178A50 50 0 0 0 228 78V28H178A50 50 0 0 0 128 78V178A50 50 0 0 0 178 228H228V178A50 50 0 0 0 178 128H78A50 50 0 1 0 128 178Z" fill="none" stroke="currentColor" stroke-width="31"/></svg></div>
+            <div class="auth-logo"><img class="emblem emblem-light" src="$base/src/assets/emblem-light.svg" width="40" height="40" alt=""><img class="emblem emblem-dark" src="$base/src/assets/emblem-dark.svg" width="40" height="40" alt=""></div>
             $body
             </div></div></body></html>
             HTML;

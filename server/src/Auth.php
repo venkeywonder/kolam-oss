@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Kolam;
 
-/** Email + password accounts with database-backed session cookies. */
+/** Email + password accounts (and "Continue with Google", see Google.php) with database-backed session cookies. */
 final class Auth
 {
     private const COOKIE = 'nk_sid';
@@ -16,8 +16,9 @@ final class Auth
         $tok = $_COOKIE[self::COOKIE] ?? '';
         if (!is_string($tok) || !preg_match('/^[a-f0-9]{64}$/', $tok)) return null;
         $hash = hash('sha256', $tok);
-        $row = Db::one('SELECT u.id, u.email, u.name, u.rev, u.email_verified_at, s.expires_at, s.seen_at FROM sessions s JOIN users u ON u.id = s.user_id
-                        WHERE s.token_hash = ? AND s.expires_at > ? AND u.suspended_at IS NULL', [$hash, time()]);
+        $row = Db::one("SELECT u.id, u.email, u.name, u.rev, u.email_verified_at, u.google_email, CASE WHEN u.pass_hash = '' THEN 0 ELSE 1 END AS has_password,
+                        s.expires_at, s.seen_at FROM sessions s JOIN users u ON u.id = s.user_id
+                        WHERE s.token_hash = ? AND s.expires_at > ? AND u.suspended_at IS NULL", [$hash, time()]);
         if (!$row) return null;
         // slide the expiry forward once a day
         $ttl = Config::get('session_days') * 86400;
@@ -117,10 +118,13 @@ final class Auth
         Db::q('DELETE FROM api_tokens WHERE user_id = ? AND token_hash LIKE ?', [$u['id'], $id . '%']);
     }
 
+    /** google: the linked Google address (or null); password: whether the account has one (Google-made accounts start without). */
     public static function publicUser(array $u): array
     {
         return ['id' => $u['id'], 'email' => $u['email'], 'name' => $u['name'],
-                'verified' => !empty($u['email_verified_at']), 'admin' => Admin::is($u)];
+                'verified' => !empty($u['email_verified_at']), 'admin' => Admin::is($u),
+                'google' => $u['google_email'] ?? null,
+                'password' => array_key_exists('pass_hash', $u) ? $u['pass_hash'] !== '' : !empty($u['has_password'])];
     }
 
     /** The browsers signed in to this account, most recently active first (ids are a prefix of the session hash). */
@@ -154,13 +158,11 @@ final class Auth
      */
     public static function signup(array $in): array
     {
-        $first = !Db::one('SELECT id FROM users LIMIT 1');
         RateLimit::hit('signup:' . Http::ip(), 10, 3600);
         Bot::check($in, 'signup');
         $email = strtolower(Http::str($in, 'email', 255));
-        $invited = (is_string($in['invite'] ?? null) && Invites::allowsSignup($in['invite'], $email))
-            || (isset($in['join']) && Shares::allowsSignup($in['join'], $in['k'] ?? ''));
-        if (!$first && !Config::get('allow_signup') && !$invited) {
+        [$first, $invited, $allowed] = self::admission($in, $email);
+        if (!$allowed) {
             Http::fail(403, is_string($in['invite'] ?? null) ? 'Use the email address the invitation was sent to' : 'Sign-ups are closed on this server');
         }
         $name = Http::str($in, 'name', 120);
@@ -170,14 +172,10 @@ final class Auth
         if (strlen($pass) > 200) Http::fail(422, 'That password is too long');
         if (Db::one('SELECT id FROM users WHERE email = ?', [$email])) Http::fail(409, 'An account with that email already exists');
         Bot::checkEmail($email);
-        $id = 'u_' . bin2hex(random_bytes(10));
         // an invited address proved inbox access already (and so has the first account on a server);
         // otherwise, unverified when verification is on, verified right away when it's off
         $verified = $first || $invited || !Config::get('email_verification');
-        Db::q('INSERT INTO users (id, email, name, pass_hash, rev, created_at, email_verified_at) VALUES (?,?,?,?,0,?,?)',
-            [$id, $email, $name !== '' ? $name : explode('@', $email)[0], password_hash($pass, PASSWORD_DEFAULT), time(), $verified ? time() : null]);
-        Spaces::personal($id);
-        if ($first) Legacy::importInto($id);
+        $id = self::createUser($email, $name, password_hash($pass, PASSWORD_DEFAULT), $verified, $first);
         self::startSession($id);
         if ($verified) {
             if (Mailer::configured()) Emails::welcome($email, $name);
@@ -187,6 +185,31 @@ final class Auth
         return self::publicUser(Db::one('SELECT * FROM users WHERE id = ?', [$id]));
     }
 
+    /**
+     * Whether $email may get a new account: [the first account on this server, invited (an invitation for that address or
+     * a join link with its key), allowed at all]. $in carries invite, or join and k.
+     */
+    public static function admission(array $in, string $email): array
+    {
+        $first = !Db::one('SELECT id FROM users LIMIT 1');
+        $invited = (is_string($in['invite'] ?? null) && Invites::allowsSignup($in['invite'], $email))
+            || (isset($in['join']) && Shares::allowsSignup($in['join'], $in['k'] ?? ''));
+        return [$first, $invited, $first || $invited || Config::get('allow_signup')];
+    }
+
+    /** Inserts an account with its own boards and returns its id. $passHash '' = no password (made with Google). */
+    public static function createUser(string $email, string $name, string $passHash, bool $verified, bool $first,
+                                      ?string $googleSub = null): string
+    {
+        $id = 'u_' . bin2hex(random_bytes(10));
+        Db::q('INSERT INTO users (id, email, name, pass_hash, rev, created_at, email_verified_at, google_sub, google_email) VALUES (?,?,?,?,0,?,?,?,?)',
+            [$id, $email, $name !== '' ? $name : explode('@', $email)[0], $passHash, time(), $verified ? time() : null,
+             $googleSub, $googleSub === null ? null : $email]);
+        Spaces::personal($id);
+        if ($first) Legacy::importInto($id);
+        return $id;
+    }
+
     public static function login(array $in): array
     {
         $email = strtolower(Http::str($in, 'email', 255));
@@ -194,6 +217,11 @@ final class Auth
         RateLimit::hit('login-ip:' . Http::ip(), 30, 900);
         RateLimit::hit('login:' . $email, 10, 900);
         $u = Db::one('SELECT * FROM users WHERE email = ?', [$email]);
+        // an account made with Google has no password until its owner sets one (the reset link does that)
+        if ($u && $u['pass_hash'] === '') {
+            Http::fail(401, Google::enabled() ? 'This account signs in with Google. Use Continue with Google, or “Forgot password?” to set a password.'
+                : 'This account has no password yet. Use “Forgot password?” to set one.');
+        }
         if (!$u || !password_verify($pass, $u['pass_hash'])) Http::fail(401, 'Wrong email or password');
         if ($u['suspended_at']) Http::fail(403, self::SUSPENDED);
         if (password_needs_rehash($u['pass_hash'], PASSWORD_DEFAULT)) {
@@ -278,6 +306,15 @@ final class Auth
         return ['ok' => true, 'message' => "We've sent a new link to " . $u['email']];
     }
 
+    /** A signed-in account without a password (made with Google) gets the reset link by email to choose one. */
+    public static function passwordLink(array $u): array
+    {
+        RateLimit::hit('pw-link:' . $u['id'], 5, 3600);
+        $tok = self::issueEmailToken($u['id'], 'reset', $u['email'], 3600);
+        Emails::reset($u['email'], $u['name'], $tok, true);
+        return ['ok' => true, 'message' => "We've sent a link to " . $u['email'] . ' to choose a password'];
+    }
+
     private static function sendVerification(string $userId, string $email, string $name): void
     {
         $tok = self::issueEmailToken($userId, 'verify', $email, 3 * 86400);
@@ -322,7 +359,7 @@ final class Auth
         return self::publicUser(Db::one('SELECT * FROM users WHERE id = ?', [$u['id']]));
     }
 
-    private static function startSession(string $userId): void
+    public static function startSession(string $userId): void
     {
         $tok = bin2hex(random_bytes(32));
         $exp = time() + Config::get('session_days') * 86400;

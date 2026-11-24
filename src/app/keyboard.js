@@ -1,6 +1,6 @@
 import { $ } from '../core/util.js';
 import { canvas } from '../core/dom.js';
-import { S, RO, checkpoint, cur, clip, clipText, els, lastPointer, redo, save, sel, selLine, setSelLine, setSpaceDown, spaceDown, undo } from '../core/store.js';
+import { S, RO, checkpoint, cur, clip, clipText, els, flush, lastPointer, redo, save, sel, selLine, setSelLine, setSpaceDown, spaceDown, undo } from '../core/store.js';
 import { V, applyView, fit, zoomAt, zoomCenter } from '../canvas/viewport.js';
 import { itemsOf } from '../core/model.js';
 import { renderLines } from '../canvas/lines.js';
@@ -16,6 +16,7 @@ import { accountOpen, closeAccount } from '../ui/account.js';
 import { drawMode, exitDraw } from '../cards/drawing.js';
 import { panel, renderPanel, setPanel } from '../ui/drawer.js';
 import { showHelp } from '../ui/help.js';
+import { notice } from '../ui/toast.js';
 
 /* ================= keyboard & clipboard ================= */
 export let nudgeT = 0;
@@ -29,7 +30,19 @@ function scrollIntoView(id) {
   v.x += c.left + c.width / 2 - (r.left + r.width / 2); v.y += c.top + c.height / 2 - (r.top + r.height / 2);
   applyView(); save(true);
 }
+async function saveNow() {
+  const ok = await flush();
+  if (ok === true) notice('Changes saved successfully.');
+  else if (ok === false) notice(navigator.onLine ? 'Couldn’t save your changes. Trying again shortly.' : 'You’re offline. Changes are kept on this device.', false);
+}
 export function init() {
+  // ⌘S / Ctrl+S anywhere in the app (also in fields and editors, hence the capture): send any unsaved changes now
+  // instead of the browser's "Save page"
+  addEventListener('keydown', e => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 's') return;
+    e.preventDefault();
+    if (!e.repeat) saveNow();
+  }, true);
   document.addEventListener('keydown', e => {
     if (!$('#modal').hidden) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } return; }
     // the account settings page covers the board: none of the board's shortcuts apply

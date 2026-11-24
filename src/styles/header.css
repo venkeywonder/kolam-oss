@@ -2,6 +2,9 @@
 #topbar{position:fixed;inset:0 0 auto 0;height:var(--top);background:var(--panel);display:flex;align-items:center;gap:6px;padding:0 10px 0 14px;z-index:50}
 .brand{display:grid;place-items:center;color:var(--accent);width:30px;height:30px;border-radius:8px;flex:none;transition:transform .2s var(--spring)}
 .brand:hover{transform:rotate(-6deg) scale(1.06)}
+.brand .emblem{display:block}
+.brand .emblem-dark,[data-theme=dark] .brand .emblem-light{display:none}
+[data-theme=dark] .brand .emblem-dark{display:block}
 #crumbs{display:flex;align-items:center;gap:2px;min-width:0;overflow:hidden;white-space:nowrap;font-size:13px;font-weight:600}
 #crumbs a{color:var(--ink);text-decoration:none;padding:5px 7px;border-radius:6px;overflow:hidden;text-overflow:ellipsis;max-width:180px;transition:background .12s}
 #crumbs a:first-child{font-weight:600}

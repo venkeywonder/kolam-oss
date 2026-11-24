@@ -173,7 +173,7 @@ final class Export
     {
         $d = $it['data'] ?? [];
         return match ($it['type'] ?? '') {
-            'note' => Text::plain($d['html'] ?? ''),
+            'note', 'text' => Text::plain($d['html'] ?? ''),
             'todo' => '**' . ($d['title'] ?? 'To-do') . "**\n\n" . implode("\n", array_map(
                 fn($t) => '- [' . (!empty($t['done']) ? 'x' : ' ') . '] ' . ($t['t'] ?? '') . (!empty($t['due']) ? ' (due ' . $t['due'] . ')' : ''),
                 is_array($d['tasks'] ?? null) ? $d['tasks'] : []
@@ -190,6 +190,8 @@ final class Export
             'shortcut' => '*[Shortcut to: ' . ($boards[$d['target'] ?? '']['title'] ?? 'a board') . ']*',
             'table' => self::tableMd($d['rows'] ?? []),
             'swatch' => 'Colour `' . ($d['hex'] ?? '') . '`',
+            'icon' => !empty($d['label']) ? '*[Icon: ' . $d['label'] . ']*' : '',
+            'group' => !empty($d['title']) ? '### ' . $d['title'] : '',
             default => '',
         };
     }
