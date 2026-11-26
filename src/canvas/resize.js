@@ -16,6 +16,7 @@ import { TYPES } from '../cards/types.js';
 import { renderLines } from './lines.js';
 import { selectOnly } from './selection.js';
 import { positionBars } from '../ui/floatbars.js';
+import { contentBox, contentsOf } from '../cards/group.js';
 import { calm } from './motion.js';
 
 const modeOf = T => (T.resizeH ? 'free' : T.ratio ? 'ratio' : T.fitH ? 'fit' : 'width');
@@ -61,7 +62,15 @@ export function resizeStart(e, id) {
   if (it.type === 'note') minW = noteMinW(el, minW);
   const hx = dir.includes('e') ? 1 : dir.includes('w') ? -1 : 0;
   const hy = mode === 'width' ? 0 : dir.includes('s') ? 1 : dir.includes('n') ? -1 : 0;
-  const others = itemsOf(cur).filter(i => !i.col && i.id !== id).map(i => itemRect(i.id)).filter(Boolean);
+  // a group can't be pulled in over the cards inside it (each edge stops where it would cut them, or where it started
+  // if they already sit closer), and its edges don't snap onto those cards
+  const box = it.type === 'group' ? contentBox(id) : null;
+  const fit = box && { x1: Math.max(box.x1, r0.x), y1: Math.max(box.y1, r0.y), x2: Math.min(box.x2, r0.x + r0.w), y2: Math.min(box.y2, r0.y + r0.h) };
+  const inside = new Set(box ? contentsOf(id, true) : []);
+  const others = itemsOf(cur).filter(i => !i.col && i.id !== id && !inside.has(i.id)).map(i => itemRect(i.id)).filter(Boolean);
+  /** The least size along one axis that keeps [a, b] covered, for a card starting at `start` with `size`, pulled by `d`. */
+  const cover = (a, b, start, size, d, centre) => Math.ceil(centre ? Math.max(size - 2 * (a - start), 2 * (b - start) - size)
+    : d > 0 ? b - start : d < 0 ? start + size - a : 0);
   const sx = e.clientX, sy = e.clientY;
   const guides = $('#guides'), body = document.body;
   let badge = null, started = false;
@@ -107,9 +116,11 @@ export function resizeStart(e, id) {
       if (hy && !keep) { gy = near(hy > 0 ? r0.y + h : r0.y + r0.h - h, 'y'); if (gy) h += hy * gy.d; }
       if (keep && gx) h = w / ratio;
     }
-    let limit = w < minW ? 'min' : w > maxW ? 'max' : mode === 'free' && !keep && h < minH ? 'min' : mode === 'free' && !keep && h > maxH ? 'max' : '';
-    w = Math.round(Math.min(maxW, Math.max(minW, w)));
-    if (mode === 'free') h = Math.round(Math.min(maxH, Math.max(minH, keep ? w / ratio : h)));
+    const loW = fit ? Math.max(minW, cover(fit.x1, fit.x2, r0.x, r0.w, hx, centre)) : minW;
+    const loH = fit ? Math.max(minH, cover(fit.y1, fit.y2, r0.y, r0.h, hy, centre)) : minH;
+    let limit = w < loW ? 'min' : w > maxW ? 'max' : mode === 'free' && !keep && h < loH ? 'min' : mode === 'free' && !keep && h > maxH ? 'max' : '';
+    w = Math.round(Math.min(maxW, Math.max(loW, w)));
+    if (mode === 'free') h = Math.round(Math.min(maxH, Math.max(loH, keep ? w / ratio : h)));
     if (limit) { gx = gy = null; }
     it.w = w; el.style.width = w + 'px';
     if (mode === 'free') { it.h = h; el.style.height = h + 'px'; T.onResize?.(el, it); }
@@ -158,7 +169,10 @@ export function resetSize(id) {
     checkpoint(); delete it.w; el.style.width = 'max-content'; el.style.maxWidth = '900px';
     save(); renderLines(); positionBars(); return;
   }
-  const w = T.w || 260, h = T.resizeH ? T.h || 220 : null;
+  let w = T.w || 260, h = T.resizeH ? T.h || 220 : null;
+  // a group comes back to its usual size, or just big enough for what's inside it
+  const box = it.type === 'group' && contentBox(id);
+  if (box) { w = Math.max(w, Math.ceil(box.x2 - it.x)); h = Math.max(h, Math.ceil(box.y2 - it.y)); }
   if (el.offsetWidth === w && (h == null || el.offsetHeight === h) && !(T.fitH && it.h)) return;
   checkpoint();
   const from = { width: el.offsetWidth + 'px', height: el.offsetHeight + 'px' };

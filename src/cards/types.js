@@ -17,6 +17,7 @@ import { remember, styleOf } from '../core/styles.js';
 import { boardIconHtml } from './board-icon.js';
 import { newTextData, paintText } from './text.js';
 import { iconArt } from './icon.js';
+import { foldGroup } from './group.js';
 
 /* ================= card types ================= */
 // the sketch pen colour: the last one you picked, on any device
@@ -291,10 +292,13 @@ export const TYPES = {
     label: 'Group', w: 480, h: 300, resizeH: true,
     init: () => ({ title: '', solid: styleOf('group').solid || undefined }),
     html: it => `<div class="grp-head">${it.data.ref || it.data.asset ? `<span class="grp-ic">${iconArt(it.data, it.color)}</span>` : ''}` +
-      `<span class="grp-title" data-ph="Group">${esc(it.data.title || '')}</span></div>`,
+      `<span class="grp-title" data-ph="Group">${esc(it.data.title || '')}</span>` +
+      `<button class="grp-tg" data-nodrag title="${it.data.collapsed ? 'Maximize: show everything in the group' : 'Minimize: show only the name'}">${icon(it.data.collapsed ? 'chevR' : 'chevD', 14)}</button></div>`,
     mount(el, it) {
       el.style.setProperty('--grp', it.color ? lineCol(pal(it.color)) : 'var(--muted)');
       el.classList.toggle('grp-solid', !!it.data.solid);
+      el.classList.toggle('collapsed', !!it.data.collapsed);
+      $('.grp-tg', el).addEventListener('click', () => foldGroup(it.id, !S.items[it.id]?.data.collapsed));
     },
     edit: el => { const t = $('.grp-title', el); t.contentEditable = 'true'; return t; },
     read: (el, it) => { it.data.title = $('.grp-title', el).innerText.replace(/\s+/g, ' ').trim(); },

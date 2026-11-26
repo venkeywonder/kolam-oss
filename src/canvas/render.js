@@ -18,7 +18,7 @@ import { isDark } from '../ui/theme.js';
 import { updateBadges } from '../ui/drawer.js';
 import { paintEditing, paintPresence } from '../ui/presence.js';
 import { badgeHtml, mountBadge, paintButton } from '../features/comments.js';
-import { drawOrder } from '../cards/group.js';
+import { drawOrder, isAway, refreshFolds } from '../cards/group.js';
 
 // one connection dot in the middle of each side; dragging one starts a line pinned to that point
 const CONN_DOTS = ['top', 'right', 'bottom', 'left'].map(s => `<div class="conn" data-side="${s}" title="Drag to connect"></div>`).join('');
@@ -39,7 +39,8 @@ export function renderBoard() {
   const keepEdit = editingId;
   itemsLayer.innerHTML = ''; els.clear();
   const frag = document.createDocumentFragment();
-  const tops = itemsOf(cur).filter(i => !i.col || !S.items[i.col]).sort(drawOrder);
+  refreshFolds();   // cards hidden in minimised groups aren't drawn
+  const tops = itemsOf(cur).filter(i => (!i.col || !S.items[i.col]) && !isAway(i.id)).sort(drawOrder);
   for (const it of tops) {
     if (it.col && !S.items[it.col]) it.col = null; // orphan safety
     let el;

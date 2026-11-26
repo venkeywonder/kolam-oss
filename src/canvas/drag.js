@@ -23,7 +23,7 @@ import { snapGuides } from './arrange.js';
 import { overDrawer, renderPanel } from '../ui/drawer.js';
 import { confirmMove } from '../features/spaces.js';
 import { fly, glide, glideCards, gulp, land, massOf, open, popIn, shake, snap, snapCards, sway } from './motion.js';
-import { contentsOf } from '../cards/group.js';
+import { contentsOf, dropGroups, isAway, landsIn, settleDrop, showGrowth, withHidden } from '../cards/group.js';
 
 /* ================= pointer: cards ================= */
 export function cardDown(e, id) {
@@ -127,11 +127,19 @@ export function dragBegin(sx, sy) {
   checkpoint();
   let ids = [...sel].filter(id => S.items[id] && S.items[id].board === cur);
   ids = ids.filter(id => { const c = S.items[id].col; return !(c && sel.has(c)) && !S.items[id].locked; });
-  // a group takes along whatever lies wholly inside it (and inside groups inside it), keeping their stacking order
-  const carried = [];
-  for (const id of ids) if (S.items[id].type === 'group') for (const k of contentsOf(id)) if (!ids.includes(k) && !carried.includes(k)) carried.push(k);
+  // a group takes along whatever lies wholly inside it (and inside groups inside it), keeping their stacking order;
+  // what a minimised group hides moves along without being drawn
+  const primary = new Set(ids), carriedBy = new Map(), carried = [];
+  for (const id of ids) if (S.items[id].type === 'group') {
+    const inside = contentsOf(id).filter(k => !primary.has(k));
+    carriedBy.set(id, inside);
+    for (const k of inside) if (!carried.includes(k)) carried.push(k);
+  }
   ids.push(...carried.sort((a, b) => (S.items[a].z || 0) - (S.items[b].z || 0)));
-  const others = itemsOf(cur).filter(i => !i.col && !ids.includes(i.id)).map(i => itemRect(i.id)).filter(Boolean);
+  const quiet = ids.filter(isAway).map(id => ({ id, ox: S.items[id].x, oy: S.items[id].y }));
+  const all = new Set(ids);
+  ids = ids.filter(id => !isAway(id));
+  const others = itemsOf(cur).filter(i => !i.col && !all.has(i.id)).map(i => itemRect(i.id)).filter(Boolean);
   let z = maxZ();
   const touchedCols = new Set();
   // the cards left behind in a column slide up to close the gap
@@ -164,7 +172,7 @@ export function dragBegin(sx, sy) {
   // the heaviest card sets how much the group sways
   const mass = Math.max(...list.map(o => massOf(S.items[o.id].type)), 1);
   const sw = sway(a => { for (const o of list) o.el.style.rotate = a ? a.toFixed(2) + 'deg' : ''; }, mass);
-  return { list, sx, sy, hasCol, ph, target: null, ids: new Set(ids), others, sw };
+  return { list, sx, sy, hasCol, ph, target: null, ids: all, quiet, primary, carriedBy, groups: dropGroups(all), others, sw };
 }
 export function findDropTarget(cx, cy, dragIds, hasCol) {
   for (const n of document.elementsFromPoint(cx, cy)) {
@@ -193,6 +201,7 @@ export function dragMove(d, ev) {
     it.x = Math.round(o.ox + dx); it.y = Math.round(o.oy + dy);
     placeDragged(o, it);
   }
+  for (const q of d.quiet) { const it = S.items[q.id]; if (it) { it.x = Math.round(q.ox + dx); it.y = Math.round(q.oy + dy); } }
   let t = findDropTarget(ev.clientX, ev.clientY, d.ids, d.hasCol);
   if (!t && overDrawer(ev.clientX, ev.clientY)) t = { type: 'unsorted' };
   snapGuides(t || ev.altKey ? null : d);
@@ -225,6 +234,10 @@ export function dragMove(d, ev) {
       glide(room);
     }
   }
+  // on the board itself: the group each card would join if dropped here lights up
+  const into = new Set(t ? [] : d.list.filter(o => d.primary.has(o.id))
+    .map(o => landsIn(d.groups, { x: S.items[o.id].x, y: S.items[o.id].y, w: o.w, h: o.h })[0]?.id).filter(Boolean));
+  for (const g of d.groups) els.get(g.id)?.classList.toggle('grp-into', into.has(g.id));
   d.target = t;
   renderLines();
 }
@@ -238,8 +251,15 @@ export function dragEnd(d) {
   d.list.forEach(o => { const it = S.items[o.id]; o.el.style.translate = o.el.style.rotate = ''; if (it) { o.el.style.left = it.x + 'px'; o.el.style.top = it.y + 'px'; } });
   d.ph.remove();
   $('#guides').innerHTML = '';
-  $$('.drop-target').forEach(x => x.classList.remove('drop-target'));
+  $$('.drop-target,.grp-into').forEach(x => x.classList.remove('drop-target', 'grp-into'));
   d.list.forEach(o => o.el.classList.remove('dragging'));
+  // dropped on the board: each card ends up wholly in a group or clear of it, never across its edge
+  let settled = null, slid = null;
+  if (!t && d.groups.length) {
+    const drops = d.list.filter(o => d.primary.has(o.id));
+    slid = snapCards(drops.flatMap(o => [o.id, ...(d.carriedBy.get(o.id) || [])]));
+    settled = settleDrop(d.groups, drops.map(o => ({ id: o.id, w: o.w, h: o.h, carry: d.carriedBy.get(o.id) })));
+  }
   let to = t?.type === 'unsorted' ? '__unsorted' : t?.type === 'board' ? S.items[t.id].data.target : null;
   let refused = false;
   if (to && ((to !== '__unsorted' && !S.boards[to]) || !can(to, 'editor'))) { toast('You can’t add cards to that board'); to = null; t = null; refused = true; }
@@ -257,7 +277,10 @@ export function dragEnd(d) {
   if (to === '__unsorted') liftCards(ids.map(id => els.get(id)));
   if (refused) ids.forEach(id => shake(els.get(id)));
   else if (t?.type === 'col') { glideCards(before); ids.forEach((id, i) => land(els.get(id), angle * .5, { delay: i * 30, ring: false })); }
-  else if (!t) ids.forEach((id, i) => land(els.get(id), angle, { delay: i * 30 }));
+  else if (!t) {
+    ids.forEach((id, i) => land(els.get(id), angle, { delay: i * 30 }));
+    if (settled) { glideCards(slid); showGrowth(settled); }
+  }
   // into another board (or Unsorted): ask first when different people can see it there
   if (to) confirmMove(cur, to, d.ids.size).then(async ok => {
     if (!ok) { dropLifted(true); ids.forEach(id => land(els.get(id), 0)); return; }
@@ -314,12 +337,22 @@ export function belowAll(bid) {
   return itemsOf(bid).filter(i => !i.col).reduce((m, i) => Math.max(m, (i.y || 0) + estH(i) + 40), 40);
 }
 export function moveToBoard(ids, bid) {
+  ids = withHidden(ids.filter(id => S.items[id]));   // a minimised group takes the cards it hides
   const set = new Set(ids);
-  for (const id of ids) if (S.items[id]?.type === 'column') childrenOf(id).forEach(k => set.add(k.id));
+  for (const id of ids) if (S.items[id].type === 'column') childrenOf(id).forEach(k => set.add(k.id));
+  // what lies inside a group that moves too keeps its place in it; the rest line up in rows below the board's cards
+  const host = new Map();
+  for (const id of ids) if (S.items[id].type === 'group') for (const k of contentsOf(id, true)) if (k !== id && set.has(k) && !host.has(k)) host.set(k, id);
+  const anchor = k => { for (let n = 0; host.has(k) && n < 50; n++) k = host.get(k); return k; };
   const baseY = belowAll(bid);
   let i = 0;
-  const tops = ids.map(id => S.items[id]).filter(Boolean).sort((a, b) => a.x - b.x || a.y - b.y);
+  const tops = ids.filter(id => !host.has(id)).map(id => S.items[id]).sort((a, b) => a.x - b.x || a.y - b.y);
+  const was = new Map(tops.map(it => [it.id, [it.x, it.y]]));
   for (const it of tops) { it.x = 40 + (i % 4) * 300; it.y = baseY + Math.floor(i / 4) * 260; it.order = Date.now() + i; i++; }
+  for (const id of ids) {
+    const a = anchor(id), w = was.get(a);
+    if (a !== id && w) { S.items[id].x += S.items[a].x - w[0]; S.items[id].y += S.items[a].y - w[1]; }
+  }
   for (const id of set) {
     const it = S.items[id]; if (!it) continue;
     it.board = bid;

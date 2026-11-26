@@ -78,11 +78,17 @@ final class LayoutTools
             $ids = array_keys($byId);
         }
 
-        // groups carry everything wholly inside their box along with them (mirrors contentsOf in src/cards/group.js)
+        // groups carry everything wholly inside their box along with them, a minimised group the cards it hides
+        // (mirrors contentsOf in src/cards/group.js)
         $groups = array_values(array_filter($all, fn($i) => $i['type'] === 'group'));
         usort($groups, fn($g1, $g2) => (Placer::box($w, $g1)['w'] * Placer::box($w, $g1)['h']) <=> (Placer::box($w, $g2)['w'] * Placer::box($w, $g2)['h']));
         $carries = [];
         foreach ($groups as $g) {
+            if (!empty($g['data']['collapsed'])) {
+                $carries[$g['id']] = array_values(array_filter((array) ($g['data']['members'] ?? []),
+                    fn($k) => is_string($k) && isset($byId[$k]) && $k !== $g['id'] && empty($byId[$k]['locked'])));
+                continue;
+            }
             $gr = Placer::box($w, $g);
             $inside = [];
             foreach ($all as $i) {

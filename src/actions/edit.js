@@ -8,6 +8,7 @@ import { renderBoard } from '../canvas/render.js';
 import { refreshSel } from '../canvas/selection.js';
 import { toast } from '../ui/toast.js';
 import { toTrash } from '../ui/drawer.js';
+import { withHidden } from '../cards/group.js';
 
 /* ================= delete / duplicate / clipboard ================= */
 export function deleteItems(ids) {
@@ -30,14 +31,14 @@ export function deleteSelection() {
   if (selLine) { checkpoint(); delete S.lines[selLine]; setSelLine(null); save(); renderBoard(); return; }
   if (!sel.size) return;
   checkpoint();
-  const n = sel.size;
-  toTrash([...sel]);
-  deleteItems([...sel]); sel.clear();
+  const n = sel.size, ids = withHidden([...sel]);   // a minimised group takes the cards it hides
+  toTrash(ids);
+  deleteItems(ids); sel.clear();
   save(); renderBoard();
   toast(`${n === 1 ? 'Card' : n + ' cards'} moved to Trash`, 'Undo', undo);
 }
 export function capture(ids) {
-  const set = new Set(ids.filter(id => S.items[id]));
+  const set = new Set(withHidden(ids.filter(id => S.items[id])));   // a minimised group takes the cards it hides
   for (const id of [...set]) if (S.items[id].type === 'column') childrenOf(id).forEach(k => set.add(k.id));
   const items = [...set].map(id => {
     const n = structuredClone(S.items[id]);
@@ -70,6 +71,7 @@ export function cloneItems(items, lines, board, dx, dy) {
     n.col = src.col ? map[src.col] || null : null;
     if (!n.col) { n.x = Math.round((n.x || 0) + dx); n.y = Math.round((n.y || 0) + dy); n.z = ++z; }
     if (n.type === 'board') n.data = { target: cloneBoard(src.data.target, board) };
+    if (n.data?.members) n.data.members = n.data.members.map(k => map[k]).filter(Boolean);   // a minimised group hides its copied cards
     S.items[n.id] = n;
     if (!n.col) out.push(n.id);
   }

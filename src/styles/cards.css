@@ -130,6 +130,15 @@ body.resizing,body.resizing *{cursor:var(--rz-cursor)!important;user-select:none
 .grp-title{outline:none;min-width:2em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .grp-title:empty::before{content:attr(data-ph);opacity:.75}
 .grp-title[contenteditable=true]{user-select:text;-webkit-user-select:text;cursor:text;text-overflow:clip;white-space:pre-wrap}
+.grp-tg{flex:none;width:20px;height:20px;margin:-2px -6px -2px -2px;padding:0;border:0;border-radius:4px;background:none;color:inherit;display:grid;place-items:center;opacity:.8;cursor:pointer}
+.grp-tg:hover{opacity:1;background:rgb(255 255 255/.2)}
+/* a card dragged over a group lights up the group it would join */
+.card.t-group.grp-into{border-style:solid;background:color-mix(in srgb,var(--grp) 12%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--grp) 30%,transparent)}
+/* a minimised group: only its label shows (the cards inside are hidden), and it can't be resized */
+.card.t-group.collapsed{width:auto!important;height:auto!important;border:0;background:none;pointer-events:auto}
+.t-group.collapsed .grp-head{position:relative;left:0;top:0;max-width:none;border-radius:8px;box-shadow:var(--shadow-sm,0 1px 3px rgb(0 0 0/.18))}
+.t-group.collapsed .grp-title{max-width:320px}
+.t-group.collapsed .rz{display:none}
 .tx-body p{margin:0}
 .tx-body :is(h1,h2){font-family:inherit;margin:0 0 .2em}
 .tx-body h1{font-size:1.6em;line-height:1.15}

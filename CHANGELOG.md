@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-26
+
+- **Groups keep their cards inside**: a card is always fully in or out of a group, and resizing never cuts one off.
+- **Minimize groups**: fold a group down to its name; its cards travel with it until you maximize it.
+
 ## 2026-11-24
 
 - **AI can do more**: draw diagrams with icons and groups, style text, add images, tidy layouts, use templates and restore versions.

@@ -30,7 +30,7 @@ import { ALIGNABLE, ALIGNS, alignIcon, alignOf, setAlign } from '../cards/align.
 import { originalOf, shortcutTo, showOriginal } from '../features/shortcuts.js';
 import { FONTS, fillOf, inkOf, mountTextPop, sizeOf, textItems, textPopHtml } from '../cards/text.js';
 import { pickIconFor } from './menus.js';
-import { groupAround, setGroupBorder } from '../cards/group.js';
+import { foldGroup, groupAround, setGroupBorder } from '../cards/group.js';
 import { setColumnDir } from '../cards/types.js';
 import { favDragOver, favDragStart, favDrop, init as initFavorites } from './favorites.js';
 
@@ -84,6 +84,7 @@ export function renderCtxTools() {
     if (one?.type === 'doc') h += btn('data-act="opendoc" title="Open document"', glyph('open'), 'Open');
     if ((one?.type === 'icon' || one?.type === 'group') && !one.locked) h += btn(`data-act="logo" title="${one.type === 'icon' ? 'Change icon' : 'Icon by the group’s name'}"`, glyph('logo'), 'Icon');
     if (one?.type === 'group' && !one.locked) h += btn(`data-act="gborder" title="${one.data.solid ? 'Dashed border' : 'Solid border'}"`, glyph('group'), one.data.solid ? 'Dashed' : 'Solid');
+    if (one?.type === 'group') h += btn(`data-act="gfold" title="${one.data.collapsed ? 'Show everything in the group' : 'Show only the group’s name'}"`, glyph(one.data.collapsed ? 'expand' : 'chevR'), one.data.collapsed ? 'Maximize' : 'Minimize');
     if (one?.type === 'column' && !one.locked) h += btn(`data-act="coldir" title="${one.data.dir === 'row' ? 'Arrange vertically' : 'Arrange horizontally'}"`, glyph('column'), one.data.dir === 'row' ? 'Vertical' : 'Horizontal');
     if (sel.size > 1) h += btn('data-act="group" title="Draw a group around these"', glyph('group'), 'Group');
     if (one && TYPES[one.type].edit && !one.locked) h += btn('data-act="edit" title="Edit (Enter)"', glyph(one.type === 'sketch' ? 'sketch' : 'edit'), one.type === 'sketch' ? 'Draw' : 'Edit');
@@ -252,6 +253,7 @@ function ctxClick(e) {
     case 'icon': { const r = b.getBoundingClientRect(); showIconPicker(one.id, r.right + 8, r.top); break; }
     case 'logo': { const r = b.getBoundingClientRect(); pickIconFor(one, r.right + 8, r.top); break; }
     case 'gborder': setGroupBorder([one.id], !one.data.solid); renderCtxTools(); break;
+    case 'gfold': foldGroup(one.id, !one.data.collapsed); renderCtxTools(); break;
     case 'coldir': setColumnDir([one.id], one.data.dir === 'row' ? 'col' : 'row'); renderCtxTools(); break;
     case 'group': groupAround(sel); break;
     case 'openlink': window.open(one.data.url, '_blank', 'noopener'); break;

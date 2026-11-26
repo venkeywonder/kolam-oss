@@ -3,6 +3,7 @@ import { pal } from '../core/palette.js';
 import { handlesSvg, linesSvg } from '../core/dom.js';
 import { S, cur, selLine } from '../core/store.js';
 import { V, itemRect } from './viewport.js';
+import { shownAs } from '../cards/group.js';
 import { lineCol } from '../ui/theme.js';
 
 /* ---------- line style ----------
@@ -35,9 +36,9 @@ export function portPoint(r, side, t, pad = 0) {
 }
 function resolveEnd(e, pad) {
   if (!e.item) return { r: null, c: { x: e.x, y: e.y } };
-  const r = itemRect(e.item); if (!r) return null;
+  const at = shownAs(e.item), r = itemRect(at); if (!r) return null;   // a card hidden in a minimised group: the group's label
   const end = { r, c: { x: r.x + r.w / 2, y: r.y + r.h / 2 } };
-  if (SIDE_DIR[e.side]) { end.pin = portPoint(r, e.side, clamp(e.t ?? 0.5, 0, 1), pad); end.dir = SIDE_DIR[e.side]; }
+  if (SIDE_DIR[e.side] && at === e.item) { end.pin = portPoint(r, e.side, clamp(e.t ?? 0.5, 0, 1), pad); end.dir = SIDE_DIR[e.side]; }
   return end;
 }
 export function lineGeom(ln) {
@@ -45,6 +46,7 @@ export function lineGeom(ln) {
   const pad = 4 + 1.5 * widthOf(ln);
   const ea = resolveEnd(ln.a, pad), eb = resolveEnd(ln.b, pad);
   if (!ea || !eb) return null;
+  if (ln.a.item && ln.b.item && shownAs(ln.a.item) === shownAs(ln.b.item)) return null;   // both ends inside one minimised group
   const route = routeOf(ln);
   if (route === 'elbow') return elbowGeom(ln, ea, eb, pad);
   // pinned ends use their point; automatic ends aim from the card centre and are clipped to its edge

@@ -4,6 +4,7 @@ import { S, cur, els, save } from '../core/store.js';
 import { itemsOf } from '../core/model.js';
 import { renderHandles } from './lines.js';
 import { positionBars } from '../ui/floatbars.js';
+import { reveal } from '../cards/group.js';
 
 /* ================= view / coordinates ================= */
 export const V = () => (S ? (S.views[cur] ||= { x: 60, y: 40, z: 1 }) : { x: 0, y: 0, z: 1 });
@@ -56,6 +57,7 @@ export function fit() {
   applyView(); save(true);
 }
 export function centerOn(id) {
+  reveal(id);   // shown in full if a minimised group hides it
   const b = itemRect(id); if (!b) return;
   const v = V(), r = canvas.getBoundingClientRect();
   v.x = r.width / 2 - (b.x + b.w / 2) * v.z;
