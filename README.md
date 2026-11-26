@@ -13,7 +13,13 @@
 
 [Quick start](#-quick-start) · [Features](#-what-you-get) · [Self-hosting](docs/self-hosting.md) · [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md)
 
-<img src="docs/screenshot.png" alt="A Kolam board with a styled heading, an architecture diagram of logos and labelled lines inside a group, a minimized group, a to-do list, a note, a horizontal column of ideas, nested boards, a comment and the favorites bar" width="900">
+<img src="docs/screenshot-dark.png" alt="Kolam in dark mode: a product team's launch board with an architecture diagram of logos and labelled arrows in a group, a poll with teammates' votes, a launch checklist, a GitHub link, a PDF, a rollout table, a row of beta ideas, a minimized group, nested boards, a shortcut and a comment" width="900">
+
+<sub><b>For teams:</b> plan a launch with diagrams, polls, checklists, tables, files and comments.</sub>
+
+<img src="docs/screenshot-light.png" alt="Kolam in light mode: a café's spring menu moodboard with photos, a colour palette in a group, a column of menu names, a sketch, a poll with picture answers, a font link, a PDF, a shortcut, a nested board and a comment" width="900">
+
+<sub><b>For creative work:</b> gather photos, colours, sketches and ideas, then let people vote with pictures.</sub>
 
 </div>
 
