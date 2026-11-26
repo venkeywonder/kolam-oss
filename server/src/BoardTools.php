@@ -470,7 +470,7 @@ final class BoardTools
             if ($type === 'text') $it['data'] = self::applyTextStyle($it['data'], $c);
             if ($type === 'table' && isset($styles['table']['header'])) $it['data']['header'] = $styles['table']['header'];
             if (in_array($type, Styles::ALIGNABLE, true)) {
-                $al = array_key_exists('align', $c) ? self::align($type, $c['align']) : ($styles[$type]['align'] ?? null);
+                $al = array_key_exists('align', $c) ? self::align($type, $c['align']) : null;
                 if ($al) $it['align'] = $al;
             } elseif (array_key_exists('align', $c)) throw new ToolError("Card $n: a $type card has no text alignment");
             $res = ['id' => $it['id'], 'type' => $type];

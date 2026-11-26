@@ -7,7 +7,7 @@
 - **Profile pictures**: pick one of 24 illustrations or upload a photo, then crop, rotate and adjust it.
 - **Groups keep their cards inside**: a card is always fully in or out of a group, and resizing never cuts one off.
 - **Minimize groups**: fold a group down to its name; its cards travel with it until you maximize it.
-- **Smaller improvements**: `php server/bin/kolam user:create` works again.
+- **Smaller improvements**: `php server/bin/kolam user:create` works again, and text alignment changes only the card you set it on.
 
 ## 2026-11-25
 

@@ -1,11 +1,10 @@
 /*
  * Text alignment for the cards that hold text (notes, to-dos, columns, comments, image captions, tables, documents):
  * left, centre, right or justified.
- * Stored on the card as `align` (absent = the type's usual alignment); the last one picked for a type is the default
- * for new cards of that type (see core/styles.js).
+ * Stored on the card as `align` (absent = the type's usual alignment). It applies to that card only: new cards always
+ * start with their type's usual alignment, so trying justify on one card never justifies the next ones.
  */
 import { S, checkpoint, els, save } from '../core/store.js';
-import { remember } from '../core/styles.js';
 
 export const ALIGNABLE = new Set(['text', 'note', 'todo', 'column', 'comment', 'image', 'table', 'doc']);
 export const ALIGNS = [['left', 'Left', 'alignLeft'], ['center', 'Center', 'alignCenter'], ['right', 'Right', 'alignRight'], ['justify', 'Justify', 'alignJustify']];
@@ -27,7 +26,6 @@ export function setAlign(ids, v) {
   checkpoint();
   for (const it of items) {
     it.align = v === usual(it.type) ? null : v;
-    remember(it.type, { align: it.align });
     const el = els.get(it.id); if (el) applyAlign(el, it);
   }
   save();

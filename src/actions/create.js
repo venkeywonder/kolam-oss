@@ -32,11 +32,10 @@ export function createItem(type, at, opts = {}) {
 /** A new card in the state of the board, without an undo step, save or redraw (the caller does those). */
 function addItem(type, at, opts) {
   const T = TYPES[type];
-  // your last colour for this kind of card (and header row for tables, text alignment) unless the caller sets one
+  // your last colour for this kind of card (and header row for tables) unless the caller sets one
   const it = { id: uid(), board: cur, type, x: Math.round(at.x), y: Math.round(at.y), w: T.w, z: maxZ() + 1, col: null, order: 0, color: styleOf(type).color ?? null, data: T.init ? T.init() : {}, ...opts };
   if (T.h && !it.h) it.h = T.h;
   if (type === 'table' && !opts.data && styleOf('table').header != null) it.data.header = styleOf('table').header;
-  if (styleOf(type).align && !('align' in opts)) it.align = styleOf(type).align;
   if (type === 'board') {
     const { bg, corners } = styleOf('board');
     const b = { id: uid(), title: opts.title || 'Untitled board', parent: cur, ...(bg ? { bg } : {}), ...(corners && corners !== 'sharp' ? { corners } : {}) };

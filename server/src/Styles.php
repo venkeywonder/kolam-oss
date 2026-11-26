@@ -12,7 +12,6 @@ namespace Kolam;
  *   sketch: pen (pen colour), color
  *   table:  header, color
  *   text:   font, size, b, i, u (bold, italic, underline), ink (#hex text colour), bg (fill: a colour key or #hex)
- *   text, note, todo, column, comment, image (caption), table, doc: align (text alignment), color
  *   group:  solid (a solid border instead of dashes), color
  *   every other card type: color
  */
@@ -53,8 +52,7 @@ final class Styles
         $out = [];
         foreach ($in as $kind => $fields) {
             if (!is_string($kind) || !is_array($fields)) continue;
-            $allowed = (self::FIELDS[$kind] ?? []) + (in_array($kind, self::CARDS, true) ? ['color' => self::COLORS] : [])
-                + (in_array($kind, self::ALIGNABLE, true) ? ['align' => self::ALIGNS] : []);
+            $allowed = (self::FIELDS[$kind] ?? []) + (in_array($kind, self::CARDS, true) ? ['color' => self::COLORS] : []);
             foreach ($fields as $k => $v) {
                 $rule = $allowed[$k] ?? null;
                 $ok = match (true) {

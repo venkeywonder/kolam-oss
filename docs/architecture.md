@@ -20,7 +20,7 @@ src/
     zip.js              reads a backup ZIP in the browser to restore it
     pwa.js              the service worker (sw.js): installing the app, desktop notifications (Web Push), the unread badge
     realtime.js         WebSocket to the realtime server (or polling), presence reports
-    styles.js           styles for new elements: the last line style, card colour per type, text alignment, table header, sketch pen and
+    styles.js           styles for new elements: the last line style, card colour per type, table header, sketch pen and
                         board background/corners you picked become the defaults for new ones (saved to your account,
                         server/src/Styles.php; the AI tools use them too); "Reset styles for new elements" in the ⋯ menu
   vendor/yjs.js         Yjs 13.6 + lib0 bundled into one ES module (MIT); no build step needed
@@ -46,7 +46,8 @@ src/
                         people, one or several picks, an optional end date; votes go through /api/polls/vote), corners (a board setting in the View menu:
                         sharp / curved / rounded for every card on that board; boards inside keep their own),
                         align (text alignment of text, notes, to-dos, columns, comments, image captions, tables and documents:
-                        Align in the toolbar, or the alignment button in the formatting bar / document editor)
+                        Align in the toolbar, or the alignment button in the formatting bar / document editor; per card, never a
+                        default for new cards)
   actions/              create, delete/duplicate/clipboard, move between boards, uploads.js (the upload queue: a card for
                         each dropped file at once, smaller copies made in workers/image.js, then the file in chunks)
   ui/                   header & menus, toolbar (+ contextual mode), toasts, modals, search, drawer,
