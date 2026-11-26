@@ -13,7 +13,7 @@
 
 [Quick start](#-quick-start) · [Features](#-what-you-get) · [Self-hosting](docs/self-hosting.md) · [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md)
 
-<img src="docs/screenshot.png" alt="A Kolam board with notes, a to-do list, nested boards, a column of ideas and a comment" width="900">
+<img src="docs/screenshot.png" alt="A Kolam board with a styled heading, an architecture diagram of logos and labelled lines inside a group, a minimized group, a to-do list, a note, a horizontal column of ideas, nested boards, a comment and the favorites bar" width="900">
 
 </div>
 
