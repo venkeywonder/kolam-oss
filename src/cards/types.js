@@ -7,6 +7,8 @@ import { boardCardOf, boardPath, childrenOf, countCards } from '../core/model.js
 import { cleanRT, fmtSize, hostOf, safeHex, sanitize } from '../core/sanitize.js';
 import { makeCard, rebuildCard } from '../canvas/render.js';
 import { renderLines } from '../canvas/lines.js';
+import { watchImage } from '../canvas/images.js';
+import { mountUpload, previewOf } from '../actions/uploads.js';
 import { caretEnd, exitEdit, startEdit } from '../canvas/editing.js';
 import { setLink } from '../actions/create.js';
 import { positionBars } from '../ui/floatbars.js';
@@ -150,8 +152,15 @@ export const TYPES = {
       const img = $('img', el);
       // a picture with transparent parts sits straight on the board: no card colour or frame behind it
       img.onload = () => { img.classList.add('loaded'); el.classList.toggle('see-through', seeThrough(img)); renderLines(); positionBars(); };
-      if (it.data.src) img.src = it.data.src;
-      else getAsset(it.data.asset).then(u => { if (u) img.src = u; else el.classList.add('missing'); });
+      if (it.data.src) { img.src = it.data.src; return; }
+      // the uploader's own small copy shows while the file goes up (and until the stored one has loaded)
+      const pre = previewOf(it);
+      if (pre) img.src = pre;
+      if (it.data.asset) watchImage(img, it);
+      else if (it.data.upload) {
+        if (!pre) $('.im', el).style.aspectRatio = it.data.ratio ? `1 / ${it.data.ratio}` : '4 / 3';
+        mountUpload(el, it);
+      } else el.classList.add('missing');
     },
     edit: el => { const c = $('.cap', el); c.contentEditable = 'true'; return c; },
     read: (el, it) => { it.data.caption = cleanRT($('.cap', el)); },
@@ -164,10 +173,13 @@ export const TYPES = {
       return `<div class="fl"><div class="fl-ic">${esc(ext)}</div><div class="fl-meta"><div class="fl-name" title="${esc(it.data.name)}">${esc(it.data.name)}</div><div class="fl-size">${fmtSize(it.data.size || 0)}</div></div><button class="fl-dl" data-nodrag title="Download">${icon('download', 16)}</button></div>`;
     },
     mount(el, it) {
+      if (it.data.upload) mountUpload(el, it);
       $('.fl-dl', el).addEventListener('click', async () => {
+        if (S.items[it.id]?.data.upload) return toast('This file is still uploading');
         const u = await getAsset(it.data.asset);
         if (!u) return toast('File data is missing');
-        const a = document.createElement('a'); a.href = u; a.download = it.data.name || 'file'; a.click();
+        // the server sends it as a download under its own name (a bucket address ignores `download`)
+        const a = document.createElement('a'); a.href = u + '?dl=1'; a.download = it.data.name || 'file'; a.click();
       });
     },
     text: it => it.data.name,

@@ -11,7 +11,7 @@ final class Placer
     private const DEFAULT_H = [
         'text' => 40, 'note' => 160, 'todo' => 160, 'link' => 110, 'column' => 360, 'board' => 110,
         'shortcut' => 60, 'table' => 160, 'doc' => 220, 'comment' => 90, 'swatch' => 90, 'image' => 220,
-        'file' => 70, 'sketch' => 220, 'drawing' => 220, 'icon' => 90, 'group' => 320,
+        'file' => 70, 'sketch' => 220, 'drawing' => 220, 'icon' => 90, 'group' => 320, 'poll' => 220,
     ];
 
     private int $x0; private int $x; private int $y; private int $rowH = 0; private int $n = 0;

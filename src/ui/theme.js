@@ -9,7 +9,10 @@ export const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 export function isDark() { return document.documentElement.dataset.theme === 'dark'; }
 export function applyTheme() {
   const t = getPref('theme', 'system');
-  document.documentElement.dataset.theme = t === 'dark' || (t === 'system' && darkMQ.matches) ? 'dark' : 'light';
+  const dark = t === 'dark' || (t === 'system' && darkMQ.matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  // the browser's (and the installed app's) title bar takes the top bar's colour (--panel)
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#232830' : '#ffffff');
 }
 export function setTheme(t) { setPref('theme', t); applyTheme(); if (S) { renderBoard(); renderPanel(); } }
 export function inkCol(c) { return isDark() && c === '#1f1f24' ? '#ececf1' : c; }

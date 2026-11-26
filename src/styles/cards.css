@@ -43,6 +43,7 @@
 .card:hover>.conn,.card.selected>.conn{opacity:1;transform:scale(1)}
 .conn:hover{transform:scale(1.25)!important;background:var(--ink)}
 .card.editing>.conn,.card.dragging>.conn,.card.t-column.in-col>.conn,.viewonly .conn,.card.in-col>.conn{display:none!important}
+#canvas.far .card:not(.selected)>:is(.conn,.rz-set){display:none}
 /* resize (canvas/resize.js): grab any edge or corner; sizes are divided by the zoom (--iz) so they stay the same on screen */
 .rz-set{position:absolute;inset:0;pointer-events:none;z-index:2;--t:calc(12px * var(--iz,1));--c:calc(18px * var(--iz,1))}
 .rz{position:absolute;pointer-events:auto;touch-action:none}
@@ -208,6 +209,16 @@ li:hover .due-add{opacity:1}
 .card.t-image.see-through:is(.selected,.editing){box-shadow:0 0 0 2px var(--select)}
 .card.t-image.see-through.dragging{box-shadow:none}
 .card.t-image.see-through.dragging img{filter:drop-shadow(0 12px 16px rgba(27,37,54,.3))}
+/* a card waiting for its file (actions/uploads.js): progress, or what went wrong and Try again */
+.up{position:absolute;left:8px;right:8px;bottom:8px;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:7px 9px;border-radius:8px;background:var(--float);color:#fff;font-size:12px;font-weight:550;box-shadow:var(--shadow-pop)}
+.t-file .up{position:static;margin:0 12px 12px}
+.up-bar{flex:1 0 100%;height:4px;border-radius:2px;background:rgba(255,255,255,.22);overflow:hidden}
+.up-bar i{display:block;height:100%;width:calc(var(--p,0) * 100%);background:var(--accent);transition:width .2s}
+.up-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.up button{border:0;border-radius:6px;padding:3px 9px;font:inherit;color:inherit;background:rgba(255,255,255,.16);cursor:pointer}
+.up button:hover{background:rgba(255,255,255,.28)}
+.up.failed{background:var(--danger)}
+.up.failed .up-bar{display:none}
 /* file + media */
 .fl{display:flex;align-items:center;gap:12px;padding:14px}
 .fl-ic{width:40px;height:48px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:700;display:grid;place-items:center;text-transform:uppercase;flex:none}
@@ -335,3 +346,76 @@ li:hover .due-add{opacity:1}
 .t-table[data-align] .tb td,.t-doc[data-align] .dc-main,.doc-page[data-align] :is(.doc-title,.doc-body){text-align:var(--ta)}
 .t-column[data-align]>.col-head{align-items:stretch;text-align:var(--ta)}
 .t-column[data-align]>.col-head>.col-title{text-align:inherit}
+
+/* poll (cards/poll.js): answers to vote on, each with its voters; while editing, the answers' tools and the settings */
+.t-poll{padding:14px 14px 12px}
+.pl-title{font:700 15px/1.4 var(--serif);margin:0 2px 10px;outline:none;overflow-wrap:anywhere}
+.pl-title:empty::before{content:attr(data-ph);color:var(--faint)}
+.pl-opts{display:flex;flex-direction:column;gap:6px}
+.pl-opt{position:relative;display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--ink) 5%,transparent);transition:background .15s,box-shadow .15s}
+.pl-opt[data-nodrag]{cursor:pointer}
+.t-poll:not(.editing) .pl-opt[data-nodrag]:hover{background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.pl-opt.win{background:color-mix(in srgb,var(--ok) 13%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ok) 70%,transparent)}
+.t-poll:not(.editing) .pl-opt.win[data-nodrag]:hover{background:color-mix(in srgb,var(--ok) 18%,transparent)}
+.pl-mark{flex:none;width:16px;height:16px;margin-top:2px;border:1.5px solid var(--ink-2);border-radius:50%;background:var(--card);display:grid;place-items:center;transition:background .15s,border-color .15s}
+.t-poll.multi .pl-mark{border-radius:3px}
+.pl-opt.mine .pl-mark{background:var(--accent);border-color:var(--accent)}
+.pl-opt.mine .pl-mark::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg);animation:tickIn .2s var(--spring)}
+.t-poll.closed .pl-opt:not(.mine) .pl-mark{opacity:.45}
+.pl-main{flex:1;min-width:0}
+.pl-img{position:relative;margin-bottom:6px;border-radius:6px;overflow:hidden;background:var(--card)}
+.pl-img img{display:block;width:100%;max-height:180px;object-fit:cover}
+.pl-img.up img{opacity:.5}
+.pl-img.up::after{content:"";position:absolute;inset:0;margin:auto;width:20px;height:20px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+.pl-img .pl-x{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff}
+.pl-line{display:flex;flex-wrap:wrap;gap:3px 6px;align-items:baseline;font-size:14px;line-height:1.4}
+.pl-text{outline:none;overflow-wrap:anywhere;min-width:0}
+.pl-text:empty{display:none}
+.t-poll.editing .pl-text{display:inline;flex:1 1 100%;min-width:2ch;user-select:text;-webkit-user-select:text;cursor:text}
+.t-poll.editing .pl-text:empty::before{content:attr(data-ph);color:var(--faint)}
+.t-poll.editing .pl-title{user-select:text;-webkit-user-select:text;cursor:text}
+.pl-ppl{display:inline-flex;align-items:center;gap:2px;font-size:13px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:0 5px;white-space:nowrap}
+.pl-bar{height:4px;margin-top:7px;border-radius:2px;background:color-mix(in srgb,var(--ink) 8%,transparent);overflow:hidden}
+.pl-bar i{display:block;height:100%;border-radius:2px;background:var(--accent);transition:width .35s var(--ease)}
+.pl-opt.win .pl-bar i{background:var(--ok)}
+.pl-opt.win .pl-n{color:var(--ok)}
+.pl-lead{display:block;margin:-1px 0 3px;padding:1px 6px;border-radius:9px;background:var(--ok);color:#fff;font-size:10px;font-style:normal;font-weight:700;letter-spacing:.02em;text-transform:uppercase;text-align:center}
+.pl-n{flex:none;min-width:26px;margin-top:1px;text-align:right;font-size:13px;font-weight:700;line-height:1.25}
+.pl-n small{display:block;font-size:11px;font-weight:500;color:var(--muted)}
+.pl-who{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.pl-voter{display:inline-flex;align-items:center;gap:4px;padding:1px 7px 1px 1px;border-radius:10px;background:var(--card);font-size:12px;color:var(--ink-2);line-height:16px}
+.pl-voter .av{width:16px;height:16px;font-size:9px}
+.pl-voter.me{font-weight:600;color:var(--ink)}
+.pl-more{font-size:12px;color:var(--muted);padding:1px 2px;cursor:default}
+.pl-foot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 2px 0;font-size:12px;color:var(--muted)}
+.pl-closed{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:4px;background:var(--chip);color:var(--ink-2);font-weight:600}
+/* editing: the answers' tools, + Add an answer and the settings; the results step aside */
+.pl-tools,.pl-add,.pl-set,.pl-x{display:none}
+.t-poll.editing :is(.pl-bar,.pl-who,.pl-n,.pl-mark,.pl-foot){display:none}
+.t-poll.editing .pl-x{display:inline-grid}
+.t-poll.editing .pl-tools{display:flex;flex:none;gap:2px;margin:-3px -4px -3px 0}
+.pl-tools button,.pl-x{place-items:center;border:0;background:none;color:var(--muted);border-radius:5px;padding:0;cursor:pointer}
+.pl-tools button{width:24px;height:24px;display:grid;font-size:13px;font-weight:700}
+.pl-tools button:hover{background:var(--hover);color:var(--ink)}
+.pl-x{width:16px;height:16px}
+.pl-ppl .pl-x{width:13px;height:13px;color:inherit;margin-right:-3px}
+.pl-x:hover{background:var(--hover)}
+.t-poll.editing .pl-add{display:block;color:var(--faint);font-size:13px;padding:8px 10px 0;cursor:pointer}
+.pl-add:hover{color:var(--ink)}
+.t-poll.editing .pl-set{display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:10px 2px 0;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+.pl-multi{display:flex;align-items:center;gap:7px;cursor:pointer}
+.pl-multi input{margin:0;accent-color:var(--accent)}
+.pl-end{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.pl-end button{border:0;background:var(--chip);color:var(--ink-2);border-radius:5px;padding:3px 8px;font-size:12px;font-weight:600}
+.pl-end button:hover,.pl-end button.picking{background:var(--press)}
+.pl-end input{border:1px solid var(--line);border-radius:5px;padding:2px 4px;font:inherit;font-size:12px;background:var(--field);color:var(--ink)}
+/* people picker for an answer's @mentions */
+.pl-pick{position:fixed;z-index:120;width:240px;background:var(--menu);border-radius:10px;box-shadow:var(--shadow-pop);padding:6px;animation:pop .12s var(--ease)}
+.pl-pick .field{height:32px;margin-bottom:4px}
+.pl-pick-list{max-height:220px;overflow:auto}
+.pl-pick-list button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;border-radius:7px;padding:6px 8px;text-align:left;font-size:13px;color:var(--ink)}
+.pl-pick-list b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-pick-list button.on,.pl-pick-list button:hover{background:var(--hover)}
+.pl-pick-list .av{width:22px;height:22px;font-size:11px}
+.pl-pick-list small{margin-left:auto;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.pl-pick-none{padding:8px;font-size:13px;color:var(--muted)}

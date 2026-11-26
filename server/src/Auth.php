@@ -16,7 +16,7 @@ final class Auth
         $tok = $_COOKIE[self::COOKIE] ?? '';
         if (!is_string($tok) || !preg_match('/^[a-f0-9]{64}$/', $tok)) return null;
         $hash = hash('sha256', $tok);
-        $row = Db::one("SELECT u.id, u.email, u.name, u.rev, u.email_verified_at, u.google_email, CASE WHEN u.pass_hash = '' THEN 0 ELSE 1 END AS has_password,
+        $row = Db::one("SELECT u.id, u.email, u.name, u.avatar, u.rev, u.email_verified_at, u.google_email, CASE WHEN u.pass_hash = '' THEN 0 ELSE 1 END AS has_password,
                         s.expires_at, s.seen_at FROM sessions s JOIN users u ON u.id = s.user_id
                         WHERE s.token_hash = ? AND s.expires_at > ? AND u.suspended_at IS NULL", [$hash, time()]);
         if (!$row) return null;
@@ -52,6 +52,13 @@ final class Auth
     public static function clearCookie(): void
     {
         self::cookie('', time() - 3600);
+    }
+
+    /** The signed-in browser's session (its token hash), or null: what a push subscription belongs to. */
+    public static function sessionHash(): ?string
+    {
+        $tok = $_COOKIE[self::COOKIE] ?? '';
+        return self::user() && is_string($tok) && $tok !== '' ? hash('sha256', $tok) : null;
     }
 
     /**
@@ -118,10 +125,11 @@ final class Auth
         Db::q('DELETE FROM api_tokens WHERE user_id = ? AND token_hash LIKE ?', [$u['id'], $id . '%']);
     }
 
-    /** google: the linked Google address (or null); password: whether the account has one (Google-made accounts start without). */
+    /** google: the linked Google address (or null); password: whether the account has one (Google-made accounts start without);
+     *  avatar: the profile picture (see Avatars), null for initials. */
     public static function publicUser(array $u): array
     {
-        return ['id' => $u['id'], 'email' => $u['email'], 'name' => $u['name'],
+        return ['id' => $u['id'], 'email' => $u['email'], 'name' => $u['name'], 'avatar' => $u['avatar'] ?? null,
                 'verified' => !empty($u['email_verified_at']), 'admin' => Admin::is($u),
                 'google' => $u['google_email'] ?? null,
                 'password' => array_key_exists('pass_hash', $u) ? $u['pass_hash'] !== '' : !empty($u['has_password'])];
@@ -343,6 +351,7 @@ final class Auth
         if (array_key_exists('notifyOff', $in)) Notify::setOff($u['id'], $in['notifyOff']);
         if (array_key_exists('styles', $in)) Styles::set($u['id'], $in['styles']);
         if (array_key_exists('favorites', $in)) Favorites::set($u['id'], $in['favorites']);
+        if (array_key_exists('avatar', $in)) Avatars::set($u['id'], $in['avatar']);
         if (isset($in['name'])) {
             $name = Http::str($in, 'name', 120);
             if ($name !== '') Db::q('UPDATE users SET name = ? WHERE id = ?', [$name, $u['id']]);

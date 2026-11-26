@@ -15,7 +15,10 @@ src/
     merge.js            field-level merging of concurrent edits (same rules as server/src/Merge.php)
     ytext.js            character-level merging of rich text with Yjs (notes, documents, captions)
     caret.js            keeps your cursor in place while other people's changes redraw what you're typing in
-    api.js              fetch wrapper, uploads, asset URLs
+    api.js              fetch wrapper, asset URLs
+    upload.js           chunked uploads that resume after a dropped connection (straight to the bucket with S3_DIRECT_UPLOADS)
+    zip.js              reads a backup ZIP in the browser to restore it
+    pwa.js              the service worker (sw.js): installing the app, desktop notifications (Web Push), the unread badge
     realtime.js         WebSocket to the realtime server (or polling), presence reports
     styles.js           styles for new elements: the last line style, card colour per type, text alignment, table header, sketch pen and
                         board background/corners you picked become the defaults for new ones (saved to your account,
@@ -26,6 +29,8 @@ src/
                         the picker opens) and one SVG per logo (loaded as an <img> only when on screen): dev/ Devicon (MIT),
                         brand/ Simple Icons (CC0), aws/ AWS Architecture Icons (AWS's terms, for diagrams; see vendor/logos/README.md)
   canvas/               viewport (pan/zoom), rendering, selection, drag & drop, lines, snapping,
+                        cull.js (big boards: only cards on or near the screen have elements), images.js (an image loads
+                        the smallest stored size that's sharp at the current zoom),
                         resize.js (every edge and corner, within each card type's min/max width; size badge, snapping,
                         Shift keeps the shape, Alt from the centre,
                         double-click a handle for the usual size),
@@ -37,17 +42,22 @@ src/
                         Lucide icon, or an uploaded picture cropped to a square and stored at 216 × 216),
                         icon (a logo straight on the board with a label under it, and the icon picker: logos by area, AWS by
                         service category, Lucide icons or an upload), group (a labelled box under the cards; moving it moves what's
-                        wholly inside), corners (a board setting in the View menu:
+                        wholly inside; minimise it to its name), poll (a question to vote on: answers with words, pictures or
+                        people, one or several picks, an optional end date; votes go through /api/polls/vote), corners (a board setting in the View menu:
                         sharp / curved / rounded for every card on that board; boards inside keep their own),
                         align (text alignment of text, notes, to-dos, columns, comments, image captions, tables and documents:
                         Align in the toolbar, or the alignment button in the formatting bar / document editor)
-  actions/              create, delete/duplicate/clipboard, move between boards
+  actions/              create, delete/duplicate/clipboard, move between boards, uploads.js (the upload queue: a card for
+                        each dropped file at once, smaller copies made in workers/image.js, then the file in chunks)
   ui/                   header & menus, toolbar (+ contextual mode), toasts, modals, search, drawer,
                         theme, sign-in screen, icons, presence (avatars, "X is editing"), notify (the bell),
-                        datepicker (to-do due dates: a small calendar with Today / Tomorrow),
+                        install (the Install app button), datepicker (to-do due dates: a small calendar with Today / Tomorrow),
                         account (the Account settings page at #/account/<section>: profile, password & devices,
-                        your data)
-  features/             templates, export (PNG/Markdown/text), backup import/export, sharing (share.js),
+                        your data), avatars (profile pictures: initials, an illustration from src/assets/avatars/ or an
+                        uploaded photo, looked up in batches), avatar-editor (crop, rotate, flip and adjust an uploaded
+                        photo; saved as a 256 × 256 WebP)
+  workers/image.js      makes the smaller copies of an image off the main thread before it uploads
+  features/             templates, export (PNG/Markdown/text), backup import/export as a ZIP (io.js), sharing (share.js),
                         spaces & workspaces (spaces.js), people/invite pieces (people.js),
                         comments on cards and the Comments panel (comments.js), activity & versions (history.js),
                         opening a link: its password, joining (links.js),
@@ -61,15 +71,20 @@ server/
   bootstrap.php         autoloader + config
   src/                  App (router), Auth, Sync, Merge (field merging), YText (Yjs text logs), Access (roles),
                         Spaces (workspaces), Sharing (people on a board), Invites, Mailer (SMTP / outbox),
-                        Comments, Notify (in-app notifications), History (activity and card versions),
+                        Comments, Notify (in-app notifications), Push (desktop notifications, no libraries),
+                        History (activity and card versions),
                         Realtime (tickets, presence) + RealtimeServer (WebSocket server),
-                        Assets, Shares (links), Unfurl, RateLimit, Db, Config, Http, Legacy,
+                        Assets, Uploads (chunked and direct uploads), Variants (smaller copies of images), AssetRefs (which
+                        cards use which file), Export + ZipStream (backups as a streamed ZIP), Shares (links), Unfurl,
+                        RateLimit, Db, Config, Http, Legacy, Polls (votes), Avatars (profile pictures),
                         Mcp (MCP server), BoardTools (the MCP tools),
                         OAuth (sign-in for MCP clients), Workspace (boards loaded for the MCP tools), Text
-  src/Storage/          LocalStorage, S3Storage (any S3-compatible bucket)
-  bin/kolam          admin CLI (create users, reset passwords, backups, cleanup)
+  src/Storage/          LocalStorage, S3Storage (any S3-compatible bucket; presigned URLs for direct uploads)
+  bin/kolam          admin CLI (create users, reset passwords, backups, cleanup, s3-cors)
   bin/realtime          live-update server (WebSocket); bin/install-realtime.sh installs it as a service
   router.php            router for PHP's built-in server (local testing)
+index.html, manifest.json, sw.js   app shell, the manifest that makes it installable, and the service worker (caches nothing;
+                        shows an offline page and delivers desktop notifications)
 storage/                SQLite database + uploads (created at runtime; never web-accessible)
 deploy/                 example nginx / Apache / php.ini / cron files
 scripts/build-logos.mjs  rebuilds src/vendor/logos from the simple-icons and devicon npm packages and AWS's Architecture Icons

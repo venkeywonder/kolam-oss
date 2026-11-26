@@ -12,10 +12,10 @@ final class BoardTools
     // text has no width of its own: it fits its words until resized
     private const WIDTH = ['text' => null, 'note' => 260, 'todo' => 260, 'link' => 280, 'column' => 280, 'board' => 150, 'table' => 380,
                            'doc' => 260, 'comment' => 260, 'swatch' => 140, 'image' => 300, 'file' => 260, 'sketch' => 320, 'drawing' => 200, 'shortcut' => 150,
-                           'icon' => 64, 'group' => 480];
+                           'icon' => 64, 'group' => 480, 'poll' => 300];
     private const LABEL = ['text' => 'Text', 'note' => 'Note', 'todo' => 'To-do', 'link' => 'Link', 'column' => 'Column', 'board' => 'Board', 'table' => 'Table',
                            'doc' => 'Document', 'comment' => 'Comment', 'swatch' => 'Colour', 'image' => 'Image', 'file' => 'File',
-                           'sketch' => 'Sketch', 'drawing' => 'Drawing', 'shortcut' => 'Shortcut', 'icon' => 'Icon', 'group' => 'Group'];
+                           'sketch' => 'Sketch', 'drawing' => 'Drawing', 'shortcut' => 'Shortcut', 'icon' => 'Icon', 'group' => 'Group', 'poll' => 'Poll'];
     private const BACKGROUNDS = ['dots', 'grid', 'plain'];
     private const CORNERS = ['sharp', 'curved', 'rounded'];
     private const FONTS = ['sans', 'serif', 'mono', 'hand'];
@@ -370,6 +370,17 @@ final class BoardTools
             case 'swatch': $o['hex'] = $d['hex'] ?? ''; break;
             case 'icon': $o += array_filter(['label' => $d['label'] ?? '', 'icon_ref' => $d['ref'] ?? (!empty($d['asset']) ? 'uploaded image' : '')]); break;
             case 'group': $o += array_filter(['title' => $d['title'] ?? '', 'solid' => !empty($d['solid']) ?: null, 'icon_ref' => $d['ref'] ?? null]); break;
+            case 'poll':
+                $who = Polls::tally($d);
+                $o['question'] = $d['title'] ?? '';
+                $o['answers'] = !empty($d['multi']) ? 'several' : 'one';
+                if (is_numeric($d['closes'] ?? null)) {
+                    $o['ends'] = gmdate('c', intdiv((int) $d['closes'], 1000));
+                    if ((int) $d['closes'] <= (int) (microtime(true) * 1000)) $o['ended'] = true;
+                }
+                $o['options'] = array_map(fn($p) => ['id' => $p['id'], 'text' => Polls::optionText($p), 'votes' => count($who[$p['id']] ?? []), 'voters' => $who[$p['id']] ?? []],
+                                          Polls::options($d));
+                break;
         }
         // comments on any card, as "Name: text"
         $c = self::comments($w);
@@ -431,6 +442,7 @@ final class BoardTools
             'swatch' => $d['hex'] ?? '',
             'icon' => $d['label'] ?? '',
             'group' => $d['title'] ?? '',
+            'poll' => Polls::text($d),
             default => '',
         });
     }

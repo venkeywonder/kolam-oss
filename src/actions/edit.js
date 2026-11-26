@@ -1,4 +1,4 @@
-import { uid } from '../core/util.js';
+import { esc, uid } from '../core/util.js';
 import { S, RO, checkpoint, clip, clipText, cur, save, sel, selLine, setClip, setClipText, setSelLine, undo } from '../core/store.js';
 import { remember } from '../core/styles.js';
 import { itemRect } from '../canvas/viewport.js';
@@ -52,16 +52,26 @@ export function capture(ids) {
   const lines = Object.values(S.lines)
     .filter(l => l.board === cur && (l.a.item || l.b.item) && (!l.a.item || set.has(l.a.item)) && (!l.b.item || set.has(l.b.item)))
     .map(l => structuredClone(l));
-  return { items, lines };
+  // what's inside copied board cards, so a paste in another workspace (or tab) rebuilds the boards in full
+  const boards = {};
+  const addBoard = bid => {
+    if (boards[bid] || !S.boards[bid]) return;
+    const its = itemsOf(bid).map(i => structuredClone(i));
+    boards[bid] = { title: S.boards[bid].title, items: its, lines: Object.values(S.lines).filter(l => l.board === bid).map(l => structuredClone(l)) };
+    its.forEach(i => { if (i.type === 'board') addBoard(i.data.target); });
+  };
+  items.forEach(i => { if (i.type === 'board') addBoard(i.data.target); });
+  return { items, lines, boards };
 }
-export function cloneBoard(bid, parent) {
-  const src = S.boards[bid];
+/** A copy of board `bid` (its cards and sub-boards) from a capture's `boards`, under `parent`. */
+export function cloneBoard(bid, parent, boards = {}) {
+  const src = boards[bid];
   const nb = { id: uid(), title: src ? src.title : 'Untitled board', parent };
   S.boards[nb.id] = nb;
-  if (src) cloneItems(itemsOf(bid).map(i => structuredClone(i)), Object.values(S.lines).filter(l => l.board === bid).map(l => structuredClone(l)), nb.id, 0, 0);
+  if (src) cloneItems(src.items, src.lines, nb.id, 0, 0, boards);
   return nb.id;
 }
-export function cloneItems(items, lines, board, dx, dy) {
+export function cloneItems(items, lines, board, dx, dy, boards = {}) {
   const map = {}; items.forEach(i => (map[i.id] = uid()));
   let z = itemsOf(board).reduce((m, i) => Math.max(m, i.z || 0), 0);
   const out = [];
@@ -70,7 +80,8 @@ export function cloneItems(items, lines, board, dx, dy) {
     n.id = map[src.id]; n.board = board;
     n.col = src.col ? map[src.col] || null : null;
     if (!n.col) { n.x = Math.round((n.x || 0) + dx); n.y = Math.round((n.y || 0) + dy); n.z = ++z; }
-    if (n.type === 'board') n.data = { target: cloneBoard(src.data.target, board) };
+    if (n.type === 'board') n.data.target = cloneBoard(src.data.target, board, boards);
+    if (n.type === 'poll') delete n.data.votes;   // a copy is a new poll: nobody has voted on it yet
     if (n.data?.members) n.data.members = n.data.members.map(k => map[k]).filter(Boolean);   // a minimised group hides its copied cards
     S.items[n.id] = n;
     if (!n.col) out.push(n.id);
@@ -86,7 +97,7 @@ export function duplicate() {
   if (!sel.size) return;
   checkpoint();
   const c = capture([...sel]);
-  const ids = cloneItems(c.items, c.lines, cur, 24, 24);
+  const ids = cloneItems(c.items, c.lines, cur, 24, 24, c.boards);
   save(); renderBoard();
   sel.clear(); ids.forEach(id => sel.add(id)); refreshSel();
 }
@@ -95,6 +106,40 @@ export function copySel() {
   setClip(capture([...sel]));
   setClipText(clip.items.map(i => (TYPES[i.type].text?.(i) || '').replace(/<[^>]+>/g, ' ').trim()).filter(Boolean).join('\n\n') || '[Kolam cards]');
   return true;
+}
+/* The copied cards also travel on the system clipboard, inside its HTML, so they paste as they were in another tab,
+   window or workspace. Other apps get the plain text. */
+const CLIP_ATTR = 'data-kolam-clip';
+export function writeClip(dt) {
+  dt.setData('text/plain', clipText);
+  dt.setData('text/html', `<div ${CLIP_ATTR}="${esc(JSON.stringify(clip))}">${esc(clipText).replace(/\n/g, '<br>')}</div>`);
+}
+const okItem = i => !!i && typeof i.id === 'string' && Object.hasOwn(TYPES, i.type) && !!i.data && typeof i.data === 'object';
+const okLines = ls => (Array.isArray(ls) ? ls.filter(l => l && typeof l.id === 'string' && l.a && l.b && typeof l.a === 'object' && typeof l.b === 'object') : []);
+/** Cards copied in Kolam (any tab or window) on this clipboard become the clip. Returns whether there were any. */
+export function readClip(dt) {
+  const html = dt.getData('text/html');
+  if (!html.includes(CLIP_ATTR)) return false;
+  let c;
+  try { c = JSON.parse(new DOMParser().parseFromString(html, 'text/html').querySelector(`[${CLIP_ATTR}]`)?.getAttribute(CLIP_ATTR) || 'null'); }
+  catch { return false; }
+  if (!Array.isArray(c?.items) || !c.items.length || !c.items.every(okItem)) return false;
+  const boards = {};
+  for (const [id, b] of Object.entries(c.boards && typeof c.boards === 'object' ? c.boards : {})) {
+    if (Array.isArray(b?.items) && b.items.every(okItem)) boards[id] = { title: String(b.title || 'Untitled board'), items: b.items, lines: okLines(b.lines) };
+  }
+  setClip({ items: c.items, lines: okLines(c.lines), boards });
+  setClipText(dt.getData('text/plain'));
+  return true;
+}
+/** Copy the selection as ⌘C does (from a menu). Browsers that send no copy event for it get the text alone. */
+export function copyToClipboard() {
+  let fired = false;
+  const on = () => (fired = true);
+  document.addEventListener('copy', on, { once: true });
+  document.execCommand('copy');   // its result is unreliable (WebKit says false after copying), hence the listener
+  document.removeEventListener('copy', on);
+  if (!fired && copySel()) navigator.clipboard?.writeText(clipText).catch(() => {});
 }
 export function pasteClip(at) {
   if (!clip) return;
@@ -105,7 +150,7 @@ export function pasteClip(at) {
     const minX = Math.min(...tops.map(i => i.x)), minY = Math.min(...tops.map(i => i.y));
     dx = at.x - minX; dy = at.y - minY;
   }
-  const ids = cloneItems(structuredClone(clip.items), structuredClone(clip.lines), cur, dx, dy);
+  const ids = cloneItems(structuredClone(clip.items), structuredClone(clip.lines), cur, dx, dy, clip.boards);
   clip.items.forEach(i => { if (!i.col) { i.x += 24; i.y += 24; } });
   save(); renderBoard();
   sel.clear(); ids.forEach(id => sel.add(id)); refreshSel();

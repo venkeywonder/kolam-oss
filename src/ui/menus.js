@@ -2,7 +2,7 @@ import { $ } from '../core/util.js';
 import { icon } from './icons.js';
 import { PALETTE } from '../core/palette.js';
 import { ctxmenu } from '../core/dom.js';
-import { S, checkpoint, clip, clipText, cur, isHome, lastPointer, redoStack, save, sel, selLine, serverOK, setCur, setS, setSelLine, undoStack } from '../core/store.js';
+import { S, checkpoint, clip, cur, isHome, lastPointer, redoStack, save, sel, selLine, serverOK, setCur, setS, setSelLine, undoStack } from '../core/store.js';
 import { confirmMove } from '../features/spaces.js';
 import { seed } from '../core/seed.js';
 import { fit } from '../canvas/viewport.js';
@@ -13,7 +13,7 @@ import { refreshSel } from '../canvas/selection.js';
 import { startEdit } from '../canvas/editing.js';
 import { moveToBoard } from '../canvas/drag.js';
 import { createFromTool } from '../actions/create.js';
-import { copySel, deleteSelection, duplicate, pasteClip, reorder, setColor } from '../actions/edit.js';
+import { copyToClipboard, deleteSelection, duplicate, pasteClip, reorder, setColor } from '../actions/edit.js';
 import { openBoard } from '../app/navigation.js';
 import { exportAll } from '../features/io.js';
 import { toast } from './toast.js';
@@ -31,6 +31,7 @@ import { renderPanel } from './drawer.js';
 import { templateGallery } from '../features/templates.js';
 import { openVersions } from '../features/history.js';
 import { originalOf, shortcutTo, showOriginal } from '../features/shortcuts.js';
+import { ended, setPollEnd } from '../cards/poll.js';
 
 /* ================= menus ================= */
 export function hideMenu() { ctxmenu.hidden = true; }
@@ -78,12 +79,14 @@ export function showItemMenu(x, y) {
   if (one?.type === 'group') m.push(one.data.collapsed ? { label: 'Maximize group', icon: 'expand', act: () => foldGroup(one.id, false) }
     : { label: 'Minimize group', icon: 'chevR', act: () => foldGroup(one.id, true) });
   if (one?.type === 'column' && !one.locked) m.push({ label: one.data.dir === 'row' ? 'Arrange vertically' : 'Arrange horizontally', icon: 'column', act: () => setColumnDir([one.id], one.data.dir === 'row' ? 'col' : 'row') });
+  if (one?.type === 'poll' && !one.locked) m.push(ended(one) ? { label: 'Reopen poll', icon: 'unlock', act: () => setPollEnd(one.id, null) }
+    : { label: 'End poll now', icon: 'lock', act: () => setPollEnd(one.id, Date.now()) });
   if ([...sel].some(id => S.items[id] && !S.items[id].col)) m.push({ label: sel.size > 1 ? 'Group these' : 'Put in a group', icon: 'group', act: () => groupAround(sel) });
   if (one?.type === 'board' && S.boards[one.data.target]) m.push({ label: 'Put a shortcut on another board…', icon: 'shortcut', act: () => shortcutTo(one.data.target) });
   if (m.length) m.push('-');
   m.push({ colors: true }, '-');
   m.push({ label: 'Duplicate', icon: 'copy', kbd: mod + 'D', act: duplicate });
-  m.push({ label: 'Copy', icon: 'copy', kbd: mod + 'C', act: () => { copySel(); navigator.clipboard?.writeText(clipText).catch(() => {}); toast('Copied'); } });
+  m.push({ label: 'Copy', icon: 'copy', kbd: mod + 'C', act: () => { copyToClipboard(); toast('Copied'); } });
   const allLocked = [...sel].every(id => S.items[id]?.locked);
   m.push({ label: allLocked ? 'Unlock' : 'Lock position', icon: allLocked ? 'unlock' : 'lock', act: toggleLock });
   m.push({ label: 'Move to board…', icon: 'move', act: moveToDialog });
@@ -125,6 +128,7 @@ export function showCanvasMenu(x, y) {
     { label: 'Add shortcut to a board…', icon: 'shortcut', act: () => createFromTool('shortcut', at) },
     { label: 'Add column', icon: 'column', act: () => createFromTool('column', at) },
     { label: 'Add table', icon: 'table', act: () => createFromTool('table', at) },
+    { label: 'Add poll', icon: 'poll', act: () => createFromTool('poll', at) },
     { label: 'Insert template…', icon: 'template', act: () => templateGallery(at) },
   ];
   if (S.boards[cur]) m.push({ label: 'Put a shortcut to this board on…', icon: 'shortcut', act: () => shortcutTo(cur) });

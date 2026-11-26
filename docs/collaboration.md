@@ -42,11 +42,28 @@ Workspaces, sharing, links, comments, notifications, version history, and connec
   Comments are stored in their own tables (`comments`, `comment_reactions`, `comment_threads`), written through
   `/api/comments`, and come to open browsers with the board's other changes. They stay with a card in the Trash and
   come back with it; the AI tools see them as `comments` on each card.
-- **Notifications** (the bell in the top bar) are in-app only: someone @mentioned you, replied in a thread you
+- **Notifications** (the bell in the top bar): someone @mentioned you, replied in a thread you
   commented in, a guest commented through a comment link you made, someone joined through your link, invited you, or
   changed your role. The realtime server tells browsers at once (otherwise the presence
   poll does). Each kind can be switched off from the bell's ••• menu. Notifications older than 90 days are removed by
   `server/bin/kolam cleanup`.
+- **Desktop notifications** (Web Push): the bell offers to turn them on, and its ••• menu switches them per browser.
+  They arrive as system notifications while Kolam is in the background or closed (the browser must be running), and
+  clicking one opens the comment. No setup: the server makes its VAPID key on first use (`nk_meta`) and encrypts each
+  message for the browser (`server/src/Push.php`, no libraries; needs PHP's openssl and curl). A subscription belongs
+  to the sign-in that made it, so signing out stops it. Browsers need HTTPS (or `localhost`); the server must reach the
+  push services (`fcm.googleapis.com`, `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`).
+- **Install as an app.** `manifest.json` and `sw.js` make Kolam installable. While the browser can install it, the top
+  bar shows **Install app** (Chrome and Edge open their install dialog; Safari on a Mac and iPhone/iPad get the steps),
+  and at most once a day a reminder under it offers the same, until someone picks *Don't show again* (the button
+  stays). Neither shows inside the installed app, which opens in its own window and shows the unread count on its
+  icon. The service worker caches nothing; without a connection it shows an offline page.
+- **Polls.** A poll card asks a question; answers can be words, a picture, @people or a mix. It takes one answer or
+  several and can end at a set time, after which it's read-only and shows the final results. Votes go through
+  `/api/polls/vote` (`server/src/Polls.php`), never sync, so the rules hold on the server: commenters and up vote, each
+  only for themselves. Every answer shows who picked it, and the answer with the most votes is marked *Top*.
+- **Profile pictures.** Account settings → Profile: one of the 24 illustrations in `src/assets/avatars/`, or an uploaded
+  photo you crop, rotate and adjust (saved as a 256 × 256 WebP; needs PHP's gd). They show wherever people appear.
 - **Activity and versions.** The clock button in the board bar shows the board's activity: who added, edited, moved,
   recoloured or deleted which card, renamed the board, or commented, newest first. One person's changes to a card
   within 2 minutes count as one entry ("3 changes"). Click an entry (or Ctrl/Alt + right-click a card → *Version history*) to see

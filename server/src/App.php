@@ -11,6 +11,11 @@ final class App
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: same-origin');
         header('Cache-Control: no-store');
+        // desktop notifications reach their push services after the response has been sent, so nobody waits
+        register_shutdown_function(static function () {
+            if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+            Push::flush();
+        });
         try {
             self::dispatch(Http::method(), self::path());
         } catch (HttpError $e) {
@@ -126,6 +131,9 @@ final class App
         if ($p === 'auth/verify/resend' && $m === 'POST') Http::json(Auth::resendVerification($u));
         if ($p === 'account/export' && $m === 'GET') Export::zip($u);
         if ($p === 'account/delete' && $m === 'POST') Http::json(Account::requestDeletion($u, Http::input()));
+        // profile picture: an uploaded one (the illustrations and "none" go through PATCH auth/me), and the pictures of people you work with
+        if ($p === 'account/avatar' && $m === 'POST') Http::json(['user' => Avatars::upload($u)]);
+        if ($p === 'avatars' && $m === 'GET') Http::json((object) Avatars::lookup($u, (string) ($_GET['ids'] ?? '')));
         // signed-in devices: list them, sign one out, or sign out every device but this one
         if ($p === 'account/sessions' && $m === 'GET') Http::json(Auth::sessions($u));
         if ($p === 'account/sessions' && $m === 'DELETE') Http::json(Auth::endSessions($u, null));
@@ -144,6 +152,7 @@ final class App
         if ($p === 'comments' && $m === 'POST') Http::json(Comments::add($u, Http::input()));
         if ($p === 'comments/resolve' && $m === 'POST') Http::json(Comments::resolve($u, Http::input()));
         if ($p === 'comments/people' && $m === 'GET') Http::json(Comments::people($u, $space, (string) ($_GET['board'] ?? '')));
+        if ($p === 'polls/vote' && $m === 'POST') Http::json(Polls::vote($u, Http::input()));
         if (preg_match('~^comments/(c_[a-f0-9]{16})(/react)?$~', $p, $mm)) {
             if (!empty($mm[2]) && $m === 'POST') Http::json(Comments::react($u, $mm[1], Http::input()));
             if (empty($mm[2]) && $m === 'PATCH') Http::json(Comments::edit($u, $mm[1], Http::input()));
@@ -151,17 +160,29 @@ final class App
         }
         if ($p === 'notifications' && $m === 'GET') Http::json(Notify::list($u));
         if ($p === 'notifications/read' && $m === 'POST') Http::json(Notify::read($u, Http::input()));
+        // desktop notifications on this device (Web Push): the server's key, and this browser's subscription
+        if ($p === 'push' && $m === 'GET') Http::json(['key' => Push::publicKey()]);
+        if ($p === 'push/subscriptions' && $m === 'POST') Http::json(Push::subscribe($u, Http::input()));
+        if ($p === 'push/subscriptions' && $m === 'DELETE') Http::json(Push::unsubscribe($u, Http::input()));
         // history: a board's activity, a card's versions, and a card as it was
         if ($p === 'history' && $m === 'GET') Http::json(History::feed($u, $space, (string) ($_GET['board'] ?? ''), (int) ($_GET['before'] ?? 0)));
         if ($p === 'history/item' && $m === 'GET') Http::json(History::versions($u, $space, (string) ($_GET['id'] ?? '')));
         if ($p === 'history/version' && $m === 'GET') Http::json(History::data($u, $space, (string) ($_GET['ref'] ?? '')));
-        if ($p === 'assets' && $m === 'POST') { Auth::requireVerified($u); Http::json(Assets::upload($u)); }
+        if ($p === 'assets/uploads' && $m === 'POST') Http::json(Uploads::init($u, Http::input()));
+        if (preg_match('~^assets/uploads/(up_[a-f0-9]{24})$~', $p, $mm)) {
+            if ($m === 'GET') Http::json(Uploads::status($u, $mm[1]));
+            if ($m === 'DELETE') Http::json(Uploads::abort($u, $mm[1]));
+        }
+        if (preg_match('~^assets/uploads/(up_[a-f0-9]{24})/complete$~', $p, $mm) && $m === 'POST') Http::json(Uploads::complete($u, $mm[1]));
+        if (preg_match('~^assets/uploads/(up_[a-f0-9]{24})/parts/(\d+)$~', $p, $mm) && $m === 'PUT') Http::json(Uploads::putPart($u, $mm[1], (int) $mm[2]));
+        if (preg_match('~^assets/uploads/(up_[a-f0-9]{24})/variants/(t|s|m)$~', $p, $mm) && $m === 'PUT') Http::json(Uploads::putVariant($u, $mm[1], $mm[2]));
         if ($p === 'assets/size' && $m === 'POST') Http::json(Assets::size($u, (array) (Http::input()['ids'] ?? [])));
         if ($p === 'unfurl' && $m === 'GET') {
             RateLimit::hit('unfurl:' . $u['id'], 120, 600);
             Http::json(Unfurl::fetch((string) ($_GET['url'] ?? '')));
         }
         if ($p === 'spaces' && $m === 'GET') Http::json(Spaces::contexts($u));
+        if (preg_match('~^spaces/([uw]_[a-f0-9]{16,24})/backup$~', $p, $mm) && $m === 'GET') Export::backup($u, $mm[1]);
         if ($p === 'realtime/ticket' && $m === 'POST') Http::json(Realtime::ticket($u));
         if ($p === 'presence' && $m === 'POST') Http::json(Realtime::poll($u, Http::input()));
         if ($p === 'presence' && $m === 'DELETE') {

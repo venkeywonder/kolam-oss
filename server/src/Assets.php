@@ -19,21 +19,8 @@ final class Assets
             : new LocalStorage(Config::get('storage') . '/assets');
     }
 
-    public static function upload(array $u): array
-    {
-        $f = $_FILES['file'] ?? null;
-        if (!$f || ($f['error'] ?? 1) !== UPLOAD_ERR_OK) {
-            $err = $f['error'] ?? -1;
-            Http::fail(in_array($err, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) ? 413 : 400, 'Upload failed');
-        }
-        if ($f['size'] > Config::get('max_upload_mb') * 1024 * 1024) Http::fail(413, 'That file is too large');
-        // the space the file goes into; anywhere you can't reach counts as your home workspace
-        $sid = is_string($_POST['space'] ?? null) ? $_POST['space'] : '';
-        $space = $sid !== '' && preg_match('/^[uw]_[a-f0-9]{16,24}$/', $sid) ? (Db::one('SELECT * FROM spaces WHERE id = ? AND deleted_at IS NULL', [$sid]) ?: null) : null;
-        if (!$space || !Access::boards($u['id'], $space)) $space = Spaces::home($u['id']);
-        return self::store($u['id'], $f['tmp_name'], (string) ($f['name'] ?? 'file'), (int) $f['size'], null, $space['id']);
-    }
-
+    /** Called by server-side uploaders (BoardTools, the import ZIP) that already have a whole file on disk; the chunked
+     *  browser protocol is Uploads::init()/complete(). Variants for these are always generated lazily, on first ?v= request. */
     public static function store(string $userId, string $tmp, string $name, int $size, ?string $id = null, ?string $spaceId = null): array
     {
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: 'application/octet-stream';
@@ -52,11 +39,14 @@ final class Assets
     /** POST assets/size {ids}: bytes of these files that count toward your storage (ones you uploaded). */
     public static function size(array $u, array $ids): array
     {
-        $ids = array_values(array_unique(array_filter($ids, fn($id) => is_string($id) && preg_match('/^a_[a-z0-9]{6,40}$/', $id))));
-        if (!$ids) return ['bytes' => 0];
-        $ids = array_slice($ids, 0, 2000);
-        $sql = 'SELECT COALESCE(SUM(size), 0) s FROM assets WHERE user_id = ? AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
-        return ['bytes' => (int) (Db::one($sql, array_merge([(string) $u['id']], $ids))['s'] ?? 0)];
+        $ids = array_values(array_filter($ids, fn($id) => is_string($id) && preg_match('/^a_[a-z0-9]{6,40}$/', $id)));
+        if (!$ids) return [];
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $out = [];
+        foreach (Db::q("SELECT id, size FROM assets WHERE user_id = ? AND id IN ($in)", array_merge([$u['id']], $ids)) as $r) {
+            $out[$r['id']] = (int) $r['size'];
+        }
+        return $out;
     }
 
     /**
@@ -67,11 +57,13 @@ final class Assets
     public static function release(array $ids): int
     {
         $freed = 0;
+        $storage = self::storage();
         foreach (array_unique($ids) as $id) {
             if (!is_string($id) || !preg_match('/^a_[a-z0-9]{6,40}$/', $id)) continue;
-            if (Db::one('SELECT 1 AS x FROM entities WHERE deleted = 0 AND data LIKE ?', ['%' . $id . '%'])) continue;
-            $a = Db::one('SELECT size FROM assets WHERE id = ?', [$id]);
-            self::storage()->delete($id);
+            if (AssetRefs::exists($id)) continue;
+            $a = Db::one('SELECT size, variants FROM assets WHERE id = ?', [$id]);
+            $storage->delete($id);
+            foreach (array_keys(Variants::TIERS) as $tier) $storage->delete("$id.$tier");
             Db::q('DELETE FROM assets WHERE id = ?', [$id]);
             $freed += (int) ($a['size'] ?? 0);
         }
@@ -89,22 +81,57 @@ final class Assets
         return $ids;
     }
 
+    /** GET assets/{id}[?v=t|s|m][&dl=1]. */
     public static function serve(string $id): never
     {
         if (!preg_match('/^a_[a-z0-9]{6,40}$/', $id)) Http::fail(404, 'Not found');
         $a = Db::one('SELECT * FROM assets WHERE id = ?', [$id]);
         if (!$a) Http::fail(404, 'Not found');
-        $etag = '"' . $id . '"';
+        $dl = !empty($_GET['dl']);
+        $tier = $_GET['v'] ?? '';
+        $key = $id; $mime = $a['mime'];
+        if (in_array($tier, ['t', 's', 'm'], true)) {
+            $variants = Variants::ensure($a);
+            if (!empty($variants[$tier])) { $key = "$id.$tier"; $mime = $variants[$tier]; }
+            else $tier = '';   // 0 = no variant: fall back to the original
+        } else $tier = '';
+        $inline = in_array($mime, self::INLINE, true) && !$dl;
+        $disposition = ($inline ? 'inline' : 'attachment') . "; filename*=UTF-8''" . rawurlencode($a['name'] ?: 'file');
+        $etag = '"' . $key . '"';
+
+        $storage = self::storage();
+        if ($storage instanceof S3Storage) {
+            header('Cache-Control: private, max-age=86400');
+            header('Location: ' . $storage->presignGet($key, 7 * 86400, [
+                'content-type' => $inline ? $mime : 'application/octet-stream',
+                'content-disposition' => $disposition,
+                'cache-control' => 'private, max-age=31536000, immutable',
+            ]));
+            http_response_code(302);
+            exit;
+        }
+
         header('Cache-Control: private, max-age=31536000, immutable');
         header('ETag: ' . $etag);
         if (($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) { http_response_code(304); exit; }
-        $inline = in_array($a['mime'], self::INLINE, true);
-        header('Content-Type: ' . ($inline ? $a['mime'] : 'application/octet-stream'));
+        header('Content-Type: ' . ($inline ? $mime : 'application/octet-stream'));
         // user files never run as pages on our origin (an SVG's scripts stay off too); data: images and fonts inside SVGs still show
         header("Content-Security-Policy: default-src 'none'; img-src 'self' data:; font-src data:; media-src 'self'; style-src 'unsafe-inline'; sandbox");
-        $fn = rawurlencode($a['name'] ?: 'file');
-        header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . "; filename*=UTF-8''$fn");
-        if (!self::storage()->output($id)) Http::fail(404, 'Not found');
+        header('Content-Disposition: ' . $disposition);
+
+        $sendfile = Config::get('asset_sendfile');
+        if ($sendfile === 'x-accel' && $storage instanceof LocalStorage) {
+            header('X-Accel-Redirect: /_kolam-assets/' . $storage->relativePath($key));
+            exit;
+        }
+        if ($sendfile === 'x-sendfile' && $storage instanceof LocalStorage) {
+            $path = $storage->fullPath($key);
+            if (!is_file($path)) Http::fail(404, 'Not found');
+            header('Content-Length: ' . filesize($path));
+            header('X-Sendfile: ' . $path);
+            exit;
+        }
+        if (!$storage->output($key)) Http::fail(404, 'Not found');
         exit;
     }
 }

@@ -32,11 +32,12 @@ import { FONTS, fillOf, inkOf, mountTextPop, sizeOf, textItems, textPopHtml } fr
 import { pickIconFor } from './menus.js';
 import { foldGroup, groupAround, setGroupBorder } from '../cards/group.js';
 import { setColumnDir } from '../cards/types.js';
+import { ended, setPollEnd } from '../cards/poll.js';
 import { favDragOver, favDragStart, favDrop, init as initFavorites } from './favorites.js';
 
 export const TOOLS = [
   ['text', 'Text'], ['note', 'Note'], ['link', 'Link'], ['todo', 'To-do'], ['line', 'Line'], ['icon', 'Icon'], ['group', 'Group'], ['board', 'Board'], ['shortcut', 'Shortcut'], ['column', 'Column'],
-  ['comment', 'Comment'], ['table', 'Table'], ['doc', 'Doc'], ['sketch', 'Sketch'], ['swatch', 'Color'],
+  ['comment', 'Comment'], ['table', 'Table'], ['poll', 'Poll'], ['doc', 'Doc'], ['sketch', 'Sketch'], ['swatch', 'Color'],
   '-', ['image', 'Add image'], ['upload', 'Upload'], ['draw', 'Draw'],
 ];
 const tools = $('#tools'), ctx = $('#ctxtools'), bar = $('#toolbar');
@@ -86,6 +87,8 @@ export function renderCtxTools() {
     if (one?.type === 'group' && !one.locked) h += btn(`data-act="gborder" title="${one.data.solid ? 'Dashed border' : 'Solid border'}"`, glyph('group'), one.data.solid ? 'Dashed' : 'Solid');
     if (one?.type === 'group') h += btn(`data-act="gfold" title="${one.data.collapsed ? 'Show everything in the group' : 'Show only the group’s name'}"`, glyph(one.data.collapsed ? 'expand' : 'chevR'), one.data.collapsed ? 'Maximize' : 'Minimize');
     if (one?.type === 'column' && !one.locked) h += btn(`data-act="coldir" title="${one.data.dir === 'row' ? 'Arrange vertically' : 'Arrange horizontally'}"`, glyph('column'), one.data.dir === 'row' ? 'Vertical' : 'Horizontal');
+    if (one?.type === 'poll' && !one.locked) h += ended(one) ? btn('data-act="pollopen" title="Open the poll for votes again"', glyph('unlock'), 'Reopen')
+      : btn('data-act="pollend" title="Close the poll now and keep its results"', glyph('lock'), 'End poll');
     if (sel.size > 1) h += btn('data-act="group" title="Draw a group around these"', glyph('group'), 'Group');
     if (one && TYPES[one.type].edit && !one.locked) h += btn('data-act="edit" title="Edit (Enter)"', glyph(one.type === 'sketch' ? 'sketch' : 'edit'), one.type === 'sketch' ? 'Draw' : 'Edit');
     const texts = [...sel].map(id => S.items[id]).filter(Boolean);
@@ -255,6 +258,8 @@ function ctxClick(e) {
     case 'gborder': setGroupBorder([one.id], !one.data.solid); renderCtxTools(); break;
     case 'gfold': foldGroup(one.id, !one.data.collapsed); renderCtxTools(); break;
     case 'coldir': setColumnDir([one.id], one.data.dir === 'row' ? 'col' : 'row'); renderCtxTools(); break;
+    case 'pollend': setPollEnd(one.id, Date.now()); renderCtxTools(); break;
+    case 'pollopen': setPollEnd(one.id, null); renderCtxTools(); break;
     case 'group': groupAround(sel); break;
     case 'openlink': window.open(one.data.url, '_blank', 'noopener'); break;
     case 'edit': startEdit(one.id); break;

@@ -2,6 +2,8 @@ import { $ } from '../core/util.js';
 import { canvas, world } from '../core/dom.js';
 import { S, cur, sel, selLine, setSelLine } from '../core/store.js';
 import { V, applyView, itemRect } from '../canvas/viewport.js';
+import { holdAll } from '../canvas/cull.js';
+import { imagesSettled, setImageScale } from '../canvas/images.js';
 import { childrenOf, itemsOf } from '../core/model.js';
 import { sanitize } from '../core/sanitize.js';
 import { refreshSel } from '../canvas/selection.js';
@@ -29,20 +31,26 @@ export async function exportPNG() {
   catch { return toast('Couldn’t load the image exporter (offline?)'); }
   const v = V(), saved = { ...v };
   v.x = 0; v.y = 0; v.z = 1; applyView();
+  holdAll(true);   // every card drawn, not only the ones on screen
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
   for (const it of tops) { const r = itemRect(it.id); if (!r) continue; x1 = Math.min(x1, r.x); y1 = Math.min(y1, r.y); x2 = Math.max(x2, r.x + r.w); y2 = Math.max(y2, r.y + r.h); }
   for (const ln of Object.values(S.lines)) { if (ln.board !== cur) continue; for (const e of [ln.a, ln.b]) if (!e.item) { x1 = Math.min(x1, e.x); y1 = Math.min(y1, e.y); x2 = Math.max(x2, e.x); y2 = Math.max(y2, e.y); } }
   const pad = 48; x1 -= pad; y1 -= pad; x2 += pad; y2 += pad;
+  const pixelRatio = Math.min(2, 8000 / Math.max(x2 - x1, y2 - y1));
   const opts = {
-    width: Math.ceil(x2 - x1), height: Math.ceil(y2 - y1), pixelRatio: Math.min(2, 8000 / Math.max(x2 - x1, y2 - y1)),
+    width: Math.ceil(x2 - x1), height: Math.ceil(y2 - y1), pixelRatio,
     backgroundColor: getComputedStyle(canvas).backgroundColor,
     style: { transform: `translate(${-x1}px,${-y1}px)` },
     imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     filter: n => !(n.tagName === 'IFRAME' || n.classList?.contains('conn') || n.classList?.contains('rz-set')),
   };
+  // pictures at the size the image is made at: a huge board shrinks them, so thumbnails will do
+  setImageScale(pixelRatio);
+  await imagesSettled();
   let url = null;
   try { url = await htmlToImage.toPng(world, opts); }
   catch { try { url = await htmlToImage.toPng(world, { ...opts, skipFonts: true }); } catch (e) { console.error(e); } }
+  setImageScale(null); holdAll(false);
   Object.assign(v, saved); applyView();
   if (!url) return toast('Export failed');
   const a = document.createElement('a'); a.href = url; a.download = fileSafe(S.boards[cur].title) + '.png'; a.click();
@@ -97,6 +105,16 @@ export function itemToMd(it, depth) {
     case 'swatch': return `Colour \`${d.hex}\``;
     case 'icon': return d.label ? `*[Icon: ${d.label}]*` : '';
     case 'group': return d.title ? `${hd(depth + 1)} ${d.title}` : '';
+    case 'poll': {
+      const who = new Map();
+      for (const v of Object.values(d.votes || {}).sort((a, b) => (a.at || 0) - (b.at || 0))) for (const o of v.o || []) who.set(o, [...(who.get(o) || []), v.n || 'Someone']);
+      const opts = (d.options || []).map(o => {
+        const v = who.get(o.id) || [], words = [o.t, ...(o.ppl || []).map(p => '@' + p.n)].filter(Boolean).join(' ') || (o.img ? '(picture)' : '');
+        return `- ${words} — ${v.length} vote${v.length === 1 ? '' : 's'}${v.length ? ` (${v.join(', ')})` : ''}`;
+      });
+      const end = d.closes != null ? `\n\n*${d.closes <= Date.now() ? 'Ended' : 'Ends'} ${new Date(d.closes).toLocaleString()}*` : '';
+      return `**${d.title || 'Poll'}**\n\n` + opts.join('\n') + end;
+    }
     default: return '';
   }
 }

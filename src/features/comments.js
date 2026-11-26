@@ -19,7 +19,7 @@ import { centerOn } from '../canvas/viewport.js';
 import { openBoard } from '../app/navigation.js';
 import { confirmDialog } from '../ui/modal.js';
 import { TYPES } from '../cards/types.js';
-import { hue } from '../ui/presence.js';
+import { avatarHtml } from '../ui/avatars.js';
 import { renderPanel, setPanel, panel as drawerPanel } from '../ui/drawer.js';
 import { toggle as toggleAi } from '../ui/ai.js';
 import { plain } from '../ui/search.js';
@@ -48,7 +48,7 @@ const nameOf = id => S.cnames?.[id] || (id === user?.id ? user.name : id?.starts
 const canComment = id => !!S.items[id] && (VIEW ? LINK.role === 'commenter' : can(S.items[id].board, 'commenter'));
 /** The author as shown: guests (comment links) are marked. */
 export const author = c => (c.g ? c.name + ' (guest)' : c.name);
-const avatar = c => `<span class="av" style="--h:${hue(c.by || c.g || c.name)}">${esc(c.name.trim()[0]?.toUpperCase() || '?')}</span>`;
+const avatar = c => avatarHtml(c.by, c.name, { key: c.by || c.g || c.name });
 
 /* ---------- guests on a comment link ---------- */
 function guest() {
@@ -135,7 +135,7 @@ async function setResolved(item, on) {
 
 /* ---------- @mentions ---------- */
 const people = new Map();   // "space|board" -> { at, list }
-async function peopleOn(board) {
+export async function peopleOn(board) {
   if (VIEW) return [];   // guests can't @mention
   const k = SPACE + '|' + board, hit = people.get(k);
   if (hit && Date.now() - hit.at < 60000) return hit.list;
@@ -178,7 +178,7 @@ function mentions(field, board, picked = new Map()) {   // picked: name -> id
     list = all.filter(p => p.name.toLowerCase().includes(q.q) || p.email.toLowerCase().startsWith(q.q)).slice(0, 6);
     if (!list.length) return close();
     start = q.at; active = Math.min(active, list.length - 1);
-    menu.innerHTML = list.map((p, i) => `<button type="button" class="${i === active ? 'on' : ''}" data-i="${i}"><span class="av" style="--h:${hue(p.id)}">${esc(p.name.trim()[0]?.toUpperCase() || '?')}</span><b>${esc(p.name)}</b><small>${esc(p.email)}</small></button>`).join('');
+    menu.innerHTML = list.map((p, i) => `<button type="button" class="${i === active ? 'on' : ''}" data-i="${i}">${avatarHtml(p.id, p.name)}<b>${esc(p.name)}</b><small>${esc(p.email)}</small></button>`).join('');
     menu.hidden = false;
   };
   field.addEventListener('input', () => { active = 0; show(); });

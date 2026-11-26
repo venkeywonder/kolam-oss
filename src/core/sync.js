@@ -8,7 +8,8 @@
  * - the server checks every change against your role; if it refuses one, local changes are dropped and the board reloads.
  */
 import { $ } from './util.js';
-import { api, assetUrl, upload } from './api.js';
+import { api, assetUrl } from './api.js';
+import { uploadAsset } from './upload.js';
 import { ACC, LINK, ROOT, S, SPACE, VIEW, can, cur, docOpen, dragging, isHome, markRemote, setACC, setCur, setROOT, setS } from './store.js';
 import { seed } from './seed.js';
 import { render } from '../canvas/render.js';
@@ -231,6 +232,11 @@ function takeFixed(fixed, ops) {
   return changed;
 }
 
+/** A card the server changed outside sync (a poll vote): it's the server's copy now; unsent changes of yours stay. The caller redraws it. */
+export function takeItem(id, d) {
+  if (S && apply({ changes: [{ k: 'item', id, d }] })) writeCache();
+}
+
 /** Redraw after other people's changes, keeping your cursor where it was. */
 export function refresh() {
   if (!S) return;
@@ -321,7 +327,7 @@ export async function pull() {
 /* ---------- uploads ---------- */
 export async function putAsset(file, name) {
   setStatus('Uploading…', 'saving');
-  try { const a = await upload(file, name, null, SPACE); return a.id; }
+  try { return (await uploadAsset(file, name || file.name || 'file', { space: SPACE })).id; }
   finally { setStatus('Saved', 'saved'); }
 }
 export async function getAsset(id) { return id ? assetUrl(id) : null; }

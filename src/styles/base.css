@@ -18,3 +18,6 @@ select.field,.pp-role,.adm-plan{appearance:none;-webkit-appearance:none;cursor:p
 select.field{font:inherit;font-size:13px;font-weight:400}
 select.field:hover,.pp-role:hover,.adm-plan:hover{background-color:var(--hover)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+/* profile pictures (src/ui/avatars.js): the picture fills the circle in place of the initials */
+.av-pic{background:var(--chip)!important;overflow:hidden;padding:0}
+.av-pic>img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}

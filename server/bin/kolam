@@ -3,7 +3,7 @@
 declare(strict_types=1);
 // Admin commands. Run from the project folder:  php server/bin/kolam <command>
 
-use Kolam\{Account, Comments, Db, Config, History, Spaces, YText};
+use Kolam\{Account, Auth, Comments, Db, Config, History, Push, Spaces, Storage\S3Storage, Uploads, YText};
 
 require dirname(__DIR__) . '/bootstrap.php';
 if (PHP_SAPI !== 'cli') exit(1);
@@ -27,9 +27,8 @@ switch ($cmd) {
         $pass = $ask('Password (8+ characters): ', true);
         if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pass) < 8) exit("Invalid email or password too short\n");
         if (Db::one('SELECT id FROM users WHERE email = ?', [$email])) exit("That email already has an account\n");
-        $id = 'u_' . bin2hex(random_bytes(10));
-        Db::q('INSERT INTO users (id, email, name, pass_hash, rev, created_at) VALUES (?,?,?,?,0,?)', [$id, $email, $name ?: $email, password_hash($pass, PASSWORD_DEFAULT), time()]);
-        Spaces::personal($id);
+        // the same path as signing up (account plus its home workspace); they verify their email from the app's banner
+        Auth::createUser($email, $name, password_hash($pass, PASSWORD_DEFAULT), !Config::get('email_verification'), false);
         echo "Created $email\n";
         break;
 
@@ -70,9 +69,26 @@ switch ($cmd) {
         $o = Db::q('DELETE FROM notifications WHERE created_at < ?', [(time() - 90 * 86400) * 1000])->rowCount();
         $h = History::prune();
         $a = Account::purgeDue();
+        // after sessions and accounts are gone, so their browsers' desktop notifications go too
+        $p = Push::prune();
+        // uploads nobody finished within 24h: abort and free whatever parts/variants arrived
+        $up = Uploads::pruneStale();
         echo "Removed $n expired sessions, $m old deletion markers, $k rate-limit entries, $w deleted workspaces, $i old invitations, "
            . "$y text-log entries of deleted cards, $c comments of deleted cards, $o old notifications, $h history entries, "
-           . "$a accounts whose deletion date passed\n";
+           . "$a accounts whose deletion date passed, $p desktop notification subscriptions of signed-out browsers, $up abandoned uploads\n";
+        break;
+
+    case 's3-cors':
+        // direct browser uploads (S3_DIRECT_UPLOADS=true) need the bucket to allow cross-origin PUT/GET from the app's own origin(s)
+        $origins = array_slice($argv, 2);
+        if (!$origins) exit("Usage: php server/bin/kolam s3-cors https://notes.example.com [https://other.example.com ...]\n");
+        $s3 = Config::get('s3');
+        if (!$s3['bucket'] || !$s3['key']) exit("S3_BUCKET / S3_KEY are not set\n");
+        $rules = implode('', array_map(fn($o) => '<CORSRule><AllowedOrigin>' . htmlspecialchars($o, ENT_XML1) . '</AllowedOrigin>'
+            . '<AllowedMethod>PUT</AllowedMethod><AllowedMethod>GET</AllowedMethod><AllowedMethod>HEAD</AllowedMethod>'
+            . '<AllowedHeader>*</AllowedHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule>', $origins));
+        (new S3Storage($s3))->putCors('<CORSConfiguration>' . $rules . '</CORSConfiguration>');
+        echo "CORS set on {$s3['bucket']} for: " . implode(', ', $origins) . "\n";
         break;
 
     case 'reports':
@@ -105,10 +121,12 @@ switch ($cmd) {
           php server/bin/kolam backup [file]              copy the SQLite database safely while running
           php server/bin/kolam cleanup                    prune expired sessions, old deletion markers and invitations,
                                                              text logs and comments of deleted cards, notifications and history older
-                                                             than 90 days, workspaces deleted more than 30 days ago, and accounts
-                                                             whose scheduled deletion date has passed
+                                                             than 90 days, workspaces deleted more than 30 days ago, accounts
+                                                             whose scheduled deletion date has passed, desktop notification
+                                                             subscriptions of browsers that signed out, and uploads nobody finished in 24h
           php server/bin/kolam reports [close <id>]       list open reports about share links, or mark one handled
           php server/bin/kolam feedback                   list the newest 50 messages sent from the app
+          php server/bin/kolam s3-cors <origin...>        set the bucket's CORS rules for direct browser uploads (S3_DIRECT_UPLOADS=true)
 
         TXT;
 }

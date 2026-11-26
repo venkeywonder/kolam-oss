@@ -87,6 +87,7 @@ final class History
             'swatch' => $str('hex'),
             'icon' => $str('label'),
             'group' => $str('title'),
+            'poll' => $str('title'),
             default => '',
         };
         $t = trim(preg_replace('/\s+/u', ' ', $t) ?? '');

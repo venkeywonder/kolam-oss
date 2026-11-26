@@ -24,6 +24,7 @@ import { overDrawer, renderPanel } from '../ui/drawer.js';
 import { confirmMove } from '../features/spaces.js';
 import { fly, glide, glideCards, gulp, land, massOf, open, popIn, shake, snap, snapCards, sway } from './motion.js';
 import { contentsOf, dropGroups, isAway, landsIn, settleDrop, showGrowth, withHidden } from '../cards/group.js';
+import { mountIds } from './cull.js';
 
 /* ================= pointer: cards ================= */
 export function cardDown(e, id) {
@@ -139,6 +140,7 @@ export function dragBegin(sx, sy) {
   const quiet = ids.filter(isAway).map(id => ({ id, ox: S.items[id].x, oy: S.items[id].y }));
   const all = new Set(ids);
   ids = ids.filter(id => !isAway(id));
+  mountIds(ids);   // selected cards off screen are moved too, so they need their elements
   const others = itemsOf(cur).filter(i => !i.col && !all.has(i.id)).map(i => itemRect(i.id)).filter(Boolean);
   let z = maxZ();
   const touchedCols = new Set();

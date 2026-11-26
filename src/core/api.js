@@ -26,20 +26,3 @@ export async function api(path, { method = 'GET', body, form, signal, keepalive 
 }
 
 export const assetUrl = id => API_BASE + 'assets/' + encodeURIComponent(id);
-
-/** Upload a File/Blob into a space; resolves to the stored asset record. */
-export function upload(file, name, onProgress, space) {
-  return new Promise((resolve, reject) => {
-    const fd = new FormData();
-    if (space) fd.append('space', space);
-    fd.append('file', file, name || file.name || 'file');
-    const x = new XMLHttpRequest();
-    x.open('POST', API_BASE + 'assets');
-    x.setRequestHeader('X-Requested-With', 'kolam');
-    x.responseType = 'json';
-    if (onProgress) x.upload.onprogress = e => e.lengthComputable && onProgress(e.loaded / e.total);
-    x.onload = () => (x.status < 300 ? resolve(x.response) : reject(new ApiError(x.status, x.response?.error || 'Upload failed')));
-    x.onerror = () => reject(new ApiError(0, 'Upload failed — check your connection'));
-    x.send(fd);
-  });
-}

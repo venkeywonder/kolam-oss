@@ -32,6 +32,11 @@ final class Config
             'trust_proxy'   => filter_var(self::env('TRUST_PROXY', 'false'), FILTER_VALIDATE_BOOL),
             'legacy_import' => filter_var(self::env('LEGACY_IMPORT', 'true'), FILTER_VALIDATE_BOOL),
             'asset_driver'  => self::env('ASSET_DRIVER', 'local'),
+            // browsers PUT straight to the bucket with presigned URLs instead of through PHP (needs asset_driver = s3)
+            's3_direct_uploads' => filter_var(self::env('S3_DIRECT_UPLOADS', 'false'), FILTER_VALIDATE_BOOL),
+            // local files: '' streams through PHP (works anywhere); 'x-accel' (Nginx) or 'x-sendfile' (Apache mod_xsendfile)
+            // hands the bytes to the web server instead, see deploy/nginx.conf and deploy/apache.conf
+            'asset_sendfile' => self::env('ASSET_SENDFILE', ''),
             's3'            => [
                 'endpoint' => self::env('S3_ENDPOINT', ''),   // e.g. https://fra1.digitaloceanspaces.com
                 'region'   => self::env('S3_REGION', 'us-east-1'),

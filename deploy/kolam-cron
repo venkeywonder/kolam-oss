@@ -6,6 +6,6 @@
 # nightly SQLite backup, kept 14 days (SQLite installs only; MySQL/PostgreSQL use their own backups)
 15 3 * * * www-data cd /var/www/kolam && php server/bin/kolam backup >/dev/null && find storage/backups -name '*.sqlite' -mtime +14 -delete
 
-# nightly cleanup: expired sessions, old deletion markers, stale invitations, history/log pruning, and accounts whose
-# scheduled deletion date (DELETE_GRACE_DAYS) has passed
+# nightly cleanup: expired sessions, old deletion markers, stale invitations, history/log pruning, accounts whose
+# scheduled deletion date (DELETE_GRACE_DAYS) has passed, desktop notifications of signed-out browsers, and unfinished uploads
 30 3 * * * www-data cd /var/www/kolam && php server/bin/kolam cleanup >/dev/null

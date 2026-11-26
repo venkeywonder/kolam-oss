@@ -3,6 +3,7 @@ import { itemsLayer } from '../core/dom.js';
 import { S, RO, editSnap, editingId, els, freshId, redo, redoStack, save, sel, selLine, setEditSnap, setEditingId, setFreshId, setSelLine, snap, snapshot, undo, undoStack, updUndo } from '../core/store.js';
 import { TYPES } from '../cards/types.js';
 import { rebuildCard, renderBoard, renderCrumbs } from './render.js';
+import { mountIds } from './cull.js';
 import { renderLines } from './lines.js';
 import { refreshSel, selectOnly } from './selection.js';
 import { deleteItems } from '../actions/edit.js';
@@ -32,6 +33,8 @@ export function startEdit(id, pt) {
   const it = S.items[id]; if (!it) return;
   const T = TYPES[it.type]; if (!T.edit || RO) return;
   if (it.locked) { toast('This card is locked. Unlock it to edit.'); return; }
+  const why = T.noEdit?.(it);
+  if (why) { toast(why); return; }
   if (editingId && editingId !== id) exitEdit();
   if (editingId === id) return;
   const other = editorOf(id);
@@ -39,6 +42,7 @@ export function startEdit(id, pt) {
   setEditingId(id); setEditSnap(snap()); typed = false;
   openText(id);
   sel.clear(); sel.add(id); setSelLine(null);
+  mountIds([id]);   // editing a card off screen (Enter on a selection) needs its element
   const el = els.get(id);
   el.classList.add('editing', 'untyped');   // untyped: a drag still moves it, so it shows the hand (cards.css)
   const f = T.edit(el, it);

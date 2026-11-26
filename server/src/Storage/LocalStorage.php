@@ -13,6 +13,12 @@ final class LocalStorage implements Storage
         return $this->dir . '/' . substr($key, 2, 2) . '/' . $key;   // shard by id to keep folders small
     }
 
+    /** Absolute path on disk, for X-Sendfile (mod_xsendfile). */
+    public function fullPath(string $key): string { return $this->path($key); }
+
+    /** Path under this store's folder, for an X-Accel-Redirect to an internal Nginx location aliasing it (deploy/nginx.conf). */
+    public function relativePath(string $key): string { return substr($key, 2, 2) . '/' . $key; }
+
     public function put(string $key, string $tmpFile, string $mime): void
     {
         $p = $this->path($key);
@@ -44,6 +50,15 @@ final class LocalStorage implements Storage
         }
         header('Content-Length: ' . $size);
         readfile($p);
+        return true;
+    }
+
+    public function read(string $key, \Closure $sink): bool
+    {
+        $fh = @fopen($this->path($key), 'rb');
+        if (!$fh) return false;
+        while (!feof($fh)) { $chunk = fread($fh, 1 << 20); if ($chunk === false) break; $sink($chunk); }
+        fclose($fh);
         return true;
     }
 

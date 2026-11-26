@@ -36,18 +36,21 @@ and your boards are on your own server.
 
 | | |
 |---|---|
-| 🧩 **Cards for everything** | Notes, to-dos with due dates, links with previews, images, files, tables with formulas, rich documents, sketches, freehand drawing, colour swatches and embeds. |
+| 🧩 **Cards for everything** | Notes, to-dos with due dates, links with previews, images, files, tables with formulas, rich documents, sketches, freehand drawing, colour swatches, polls and embeds. |
 | 🪆 **Boards inside boards** | Nest boards as deep as you like, then put a shortcut to any of them on any other board. |
-| 👥 **Built for teams** | Workspaces with roles, per-board sharing, and view / comment / join links with optional passwords and expiry dates. |
+| 👥 **Built for teams** | Workspaces with roles, per-board sharing, view / comment / join links with optional passwords and expiry dates, polls with pictures, and profile pictures (24 illustrations or your own photo). |
 | ⚡ **Live collaboration** | See who's here and what they're editing. Edits merge field by field, and rich text merges character by character (thanks to [Yjs](https://yjs.dev)). |
 | 💬 **Comments and history** | Threads on any card with @mentions and reactions, a per-board activity feed, and version history you can restore from. |
 | 🤖 **Bring your own AI** | A built-in MCP server lets Claude Code, Codex or any MCP client read and change your boards. You use your own subscription; Kolam never calls an AI API. |
 | 📴 **Works offline** | Boards are cached in the browser, so they open instantly and keep your edits when the network drops. |
-| 📦 **Your data, your way** | SQLite out of the box, or MySQL / MariaDB / PostgreSQL. Files on local disk or any S3-compatible bucket. Export everything as JSON + Markdown at any time. |
+| 📲 **Install it as an app** | Open Kolam in its own window from your Dock or Start menu, with desktop notifications for mentions and replies. |
+| 🖼️ **Big boards stay fast** | Only what's on screen is drawn, images load in the size they're shown at, and large uploads go up in chunks that resume. |
+| 📦 **Your data, your way** | SQLite out of the box, or MySQL / MariaDB / PostgreSQL. Files on local disk or any S3-compatible bucket. Back up everything as one ZIP (data, Markdown and every file) at any time. |
 
 ## 🚀 Quick start
 
-You need PHP 8.1+ with `pdo_sqlite`, `curl`, `mbstring` and `fileinfo`. That's the whole list.
+You need PHP 8.1+ with `pdo_sqlite`, `curl`, `mbstring` and `fileinfo`. That's the whole list. `gd` (uploaded profile
+pictures, smaller copies of images) and `openssl` (desktop notifications) are optional.
 
 ```bash
 git clone https://github.com/venkeywonder/kolam-oss.git kolam && cd kolam

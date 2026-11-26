@@ -14,7 +14,7 @@ import { renderBoard } from '../canvas/render.js';
 import { selectOnly } from '../canvas/selection.js';
 import { centerOn } from '../canvas/viewport.js';
 import { TYPES } from '../cards/types.js';
-import { hue } from '../ui/presence.js';
+import { avatarHtml } from '../ui/avatars.js';
 import { miniCard, renderPanel, setPanel, panel as drawerPanel } from '../ui/drawer.js';
 import { openThread, toggle as toggleComments } from './comments.js';
 import { toggle as toggleAi } from '../ui/ai.js';
@@ -53,7 +53,7 @@ function verb(e) {
 }
 const cardThing = (type, label) => `<span class="hs-card">${icon(typeIcon(type), 13)}<span>${esc(label || TYPES[type]?.label || 'a card')}</span></span>`;
 const when = at => `<span title="${esc(new Date(at).toLocaleString())}">${ago(at)}</span>`;
-const avatar = (key, name) => `<span class="av" style="--h:${hue(key || name || '?')}">${esc((name || '?').trim()[0]?.toUpperCase() || '?')}</span>`;
+const avatar = (by, name) => avatarHtml(by, name, { key: by || name || '?' });
 function dayOf(at) {
   const d = new Date(at), t = new Date();
   const y = new Date(t); y.setDate(t.getDate() - 1);
@@ -138,7 +138,7 @@ function entryHtml(e, i) {
   if (e.k === 'comment') {
     const name = e.guest ? e.name + ' (guest)' : feed.names[e.by] || e.name;
     const it = S.items[e.item];
-    return `<button class="hs-row" data-e="${i}">${avatar(e.by || e.name, name)}<span class="hs-main"><span><b>${esc(name)}</b> commented on ` +
+    return `<button class="hs-row" data-e="${i}">${avatar(e.by, name)}<span class="hs-main"><span><b>${esc(name)}</b> commented on ` +
       `${it ? cardThing(it.type, plain(TYPES[it.type]?.text?.(it) || '').slice(0, 60)) : 'a card'}</span>` +
       `<span class="hs-quote">“${esc(e.label)}”</span><small>${when(e.at)}</small></span></button>`;
   }

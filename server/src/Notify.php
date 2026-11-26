@@ -36,11 +36,13 @@ final class Notify
         if (!$u) return;
         $pref = in_array($kind, ['invite', 'role', 'join'], true) ? 'access' : $kind;
         if (in_array($pref, self::off($u['notify_off']), true)) return;
+        $id = 'n_' . bin2hex(random_bytes(8));
         Db::q('INSERT INTO notifications (id, user_id, kind, space_id, board_id, item_id, ref, actor_id, actor_name, text, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)', [
-            'n_' . bin2hex(random_bytes(8)), $to, $kind, $f['space'] ?? null, $f['board'] ?? null, $f['item'] ?? null, $f['ref'] ?? null,
+            $id, $to, $kind, $f['space'] ?? null, $f['board'] ?? null, $f['item'] ?? null, $f['ref'] ?? null,
             $f['actor'] ?? null, isset($f['actorName']) ? mb_substr((string) $f['actorName'], 0, 120) : null,
             mb_substr((string) ($f['text'] ?? ''), 0, 400), self::ms(),
         ]);
+        Push::queue($id);   // to their devices with desktop notifications on, once this request has committed
         if (random_int(1, 100) === 1) Db::q('DELETE FROM notifications WHERE created_at < ?', [(time() - self::KEEP_DAYS * 86400) * 1000]);
     }
 
@@ -75,7 +77,15 @@ final class Notify
     /** The latest 50, newest first, with names of who and where. */
     public static function list(array $u): array
     {
-        $rows = Db::q('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50', [$u['id']])->fetchAll();
+        $items = self::describe(Db::q('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50', [$u['id']])->fetchAll());
+        $unread = (int) Db::one('SELECT COUNT(*) n FROM notifications WHERE user_id = ? AND read_at IS NULL', [$u['id']])['n'];
+        $off = self::off(Db::one('SELECT notify_off FROM users WHERE id = ?', [$u['id']])['notify_off'] ?? null);
+        return ['items' => $items, 'unread' => $unread, 'latest' => self::latest($u['id']), 'off' => $off];
+    }
+
+    /** Notification rows as browsers get them (same order), with the names of who and where. */
+    public static function describe(array $rows): array
+    {
         $actors = Access::names(array_column($rows, 'actor_id'));
         $spaces = []; $boards = [];
         foreach ($rows as $r) if ($r['space_id']) { $spaces[$r['space_id']] = true; if ($r['board_id']) $boards[$r['space_id']][] = $r['board_id']; }
@@ -93,9 +103,21 @@ final class Notify
                         'where' => $s ? ($s['titles'][$r['board_id']] ?? $s['name']) : null, 'at' => (int) $r['created_at'],
                         'read' => $r['read_at'] !== null];
         }
-        $unread = (int) Db::one('SELECT COUNT(*) n FROM notifications WHERE user_id = ? AND read_at IS NULL', [$u['id']])['n'];
-        $off = self::off(Db::one('SELECT notify_off FROM users WHERE id = ?', [$u['id']])['notify_off'] ?? null);
-        return ['items' => $items, 'unread' => $unread, 'latest' => self::latest($u['id']), 'off' => $off];
+        return $items;
+    }
+
+    /** Title and text of a desktop notification (the bell's wording, src/ui/notify.js what()). */
+    public static function headline(array $n): array
+    {
+        $who = $n['actor'] ?: 'Someone';
+        $where = $n['where'] !== null ? " in “{$n['where']}”" : '';
+        return match ($n['kind']) {
+            'mention' => ['title' => "$who mentioned you$where", 'body' => $n['text']],
+            'reply' => ['title' => "$who replied$where", 'body' => $n['text']],
+            'guest' => ['title' => "$who commented with your link$where", 'body' => $n['text']],
+            'join' => ['title' => $who, 'body' => 'joined “' . ($n['where'] ?? 'a board') . "” with a link, {$n['text']}"],
+            default => ['title' => $who, 'body' => $n['text']],
+        };
     }
 
     /** Mark some ($in['ids']) or all as read. */

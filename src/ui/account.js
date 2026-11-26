@@ -10,6 +10,8 @@ import { toast } from './toast.js';
 import { icon } from './icons.js';
 import { paintAvatar } from './header.js';
 import { GOOGLE_G, startGoogle } from './auth.js';
+import { PRESETS, avatarChanged, avatarHtml, avatarSrc, presetValue } from './avatars.js';
+import { PIC_HINT, PIC_RULES, editPicture, readPicture } from './avatar-editor.js';
 
 const fmtDate = ts => new Date(ts * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -112,7 +114,7 @@ function draw() {
   if (data && !SECTIONS.some(([k]) => k === section)) { section = 'profile'; history.replaceState(null, '', '#/account'); }
   const u = data?.u || user;
   $('.ac-nav', page).innerHTML = `
-    <div class="ac-me"><span class="ac-avatar">${esc(((u.name || u.email || '?').trim()[0] || '?').toUpperCase())}</span>
+    <div class="ac-me">${avatarHtml(u.id, u.name || u.email, { cls: 'ac-avatar' })}
       <div><b>${esc(u.name || u.email)}</b><small>${esc(u.email)}</small></div></div>
     ${SECTIONS.map(([k, label, ic]) => `<a href="#/account/${k}"${k === section ? ' class="on" aria-current="page"' : ''}>${icon(ic, 17)}<span>${label}</span></a>`).join('')}`;
   const nav = $('.ac-nav', page), on = $('a.on', nav);   // the narrow layout scrolls the nav sideways: keep the current one in view
@@ -131,7 +133,7 @@ function profileHtml() {
   const email = !config.verification ? ''
     : u.verified ? '<span class="ac-tag ok">Verified</span>'
     : '<span class="ac-tag warn">Not verified</span> <button class="ac-link" type="button" data-resend>Send the link again</button>';
-  return head('Profile', 'How you appear to the people you work with.') + `
+  return head('Profile', 'How you appear to the people you work with.') + pictureHtml() + `
     <section class="ac-card">
       <form class="ac-form" data-name-form>
         <label class="ac-field"><span>Name</span>
@@ -163,6 +165,75 @@ function wireProfile(main) {
     btn.disabled = true;
     try { toast((await api('auth/verify/resend', { method: 'POST' })).message || 'Email sent'); } catch (err) { toast(err.message); }
     btn.disabled = false;
+  });
+  wirePicture(main);
+}
+
+/* ---------- profile picture: an illustration, or an uploaded picture cropped and edited first ---------- */
+function pictureHtml() {
+  const { u } = data, presets = Array.from({ length: PRESETS }, (_, i) => presetValue(i + 1));
+  return `
+    <section class="ac-card ac-pic" data-pic>
+      <h3>Profile picture</h3>
+      <p class="ac-sub">Shown next to your name on comments, in shared boards and to people working with you.</p>
+      <div class="ac-pic-top">
+        ${avatarHtml(u.id, u.name || u.email, { cls: 'ac-pic-now' })}
+        <div class="ac-pic-do">
+          <div class="ac-actions">
+            <button class="btn" type="button" data-pic-upload>${icon('upload', 15)}<span>Upload a picture</span></button>
+            ${u.avatar ? '<button class="btn ghost" type="button" data-pic-remove>Remove</button>' : ''}
+          </div>
+          <small>${PIC_HINT} You can crop, rotate and adjust it before saving.</small>
+          <div class="ac-pic-err" role="alert" hidden></div>
+        </div>
+      </div>
+      <h4 class="ac-pic-h">Or pick an illustration</h4>
+      <div class="ac-presets" role="radiogroup" aria-label="Illustrations">
+        ${presets.map((v, i) => `<button type="button" role="radio" aria-checked="${u.avatar === v}" aria-label="Illustration ${i + 1}" data-preset="${v}">` +
+          `<img src="${avatarSrc(v)}" alt="" loading="lazy" decoding="async" draggable="false"></button>`).join('')}
+      </div>
+      <input type="file" accept="${PIC_RULES.types.join(',')}" hidden data-pic-file>
+    </section>`;
+}
+
+function wirePicture(main) {
+  const box = $('[data-pic]', main), file = $('[data-pic-file]', box), err = $('.ac-pic-err', box), up = $('[data-pic-upload]', box);
+  const busy = on => box.querySelectorAll('button').forEach(b => (b.disabled = on));
+  const fail = e => { err.textContent = e.message || 'That didn’t work. Try again.'; err.hidden = false; };
+  const saved = (nu, msg) => {
+    Object.assign(user, nu); data.u = { ...data.u, ...nu };
+    avatarChanged(); draw(); toast(msg);
+  };
+  const set = async (avatar, msg) => {
+    err.hidden = true; busy(true);
+    try { saved((await api('auth/me', { method: 'PATCH', body: { avatar } })).user, msg); } catch (e) { fail(e); busy(false); }
+  };
+  const upload = async f => {
+    err.hidden = true;
+    let blob;
+    try { blob = await editPicture(await readPicture(f)); } catch (e) { return fail(e); }
+    if (!blob) return;
+    busy(true); up.querySelector('span').textContent = 'Uploading…';
+    try {
+      const form = new FormData();
+      form.append('file', blob, blob.type === 'image/webp' ? 'avatar.webp' : 'avatar.png');
+      saved((await api('account/avatar', { method: 'POST', form })).user, 'Picture updated');
+    } catch (e) { fail(e); busy(false); up.querySelector('span').textContent = 'Upload a picture'; }
+  };
+
+  up.addEventListener('click', () => file.click());
+  file.addEventListener('change', () => { const f = file.files[0]; file.value = ''; if (f) upload(f); });
+  $('[data-pic-remove]', box)?.addEventListener('click', () => set(null, 'Picture removed'));
+  $('.ac-presets', box).addEventListener('click', e => {
+    const b = e.target.closest('[data-preset]');
+    if (b && b.getAttribute('aria-checked') !== 'true') set(b.dataset.preset, 'Picture updated');
+  });
+  // a picture dropped anywhere on the card
+  box.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); box.classList.add('drop'); } });
+  box.addEventListener('dragleave', e => { if (!box.contains(e.relatedTarget)) box.classList.remove('drop'); });
+  box.addEventListener('drop', e => {
+    e.preventDefault(); box.classList.remove('drop');
+    const f = e.dataTransfer.files[0]; if (f) upload(f);
   });
 }
 

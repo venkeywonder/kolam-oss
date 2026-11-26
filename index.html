@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Kolam</title>
 <meta name="description" content="Kolam — a visual workspace for notes, ideas, images and plans.">
-<meta name="theme-color" content="#ebedee">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="src/assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
@@ -20,6 +22,7 @@
   <button id="spaceBtn" title="Switch between your boards, workspaces and boards shared with you" aria-label="Spaces" aria-haspopup="true" aria-expanded="false"></button>
   <nav id="crumbs" aria-label="Breadcrumbs"></nav>
   <div class="top-right">
+    <button class="tb-install" id="installBtn" title="Install Kolam as an app on this computer" hidden></button>
     <button class="icon-btn" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo"></button>
     <button class="icon-btn" id="redoBtn" title="Redo (⇧⌘Z)" aria-label="Redo"></button>
     <span class="tb-div"></span>
@@ -89,7 +92,7 @@
 
 <input type="file" id="imgPick" accept="image/*" multiple hidden>
 <input type="file" id="filePick" multiple hidden>
-<input type="file" id="importPick" accept="application/json,.json" hidden>
+<input type="file" id="importPick" accept="application/zip,.zip,application/json,.json" hidden>
 
 <script type="module" src="src/main.js"></script>
 </body>

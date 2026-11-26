@@ -3,6 +3,7 @@ import { $, esc } from '../core/util.js';
 import { icon } from '../ui/icons.js';
 import { toast } from '../ui/toast.js';
 import { closeModal, openModal } from '../ui/modal.js';
+import { avatarHtml } from '../ui/avatars.js';
 
 export const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', guest: 'Guest', editor: 'Can edit', commenter: 'Can comment', viewer: 'Can view' };
 export const ROLE_HELP = {
@@ -13,7 +14,7 @@ export const ROLE_HELP = {
   member: 'Sees and edits every board',
 };
 
-export const avatar = name => `<span class="pp-av">${esc((name || '?').trim()[0]?.toUpperCase() || '?')}</span>`;
+export const avatar = p => avatarHtml(p.id, p.name, { cls: 'pp-av' });
 
 export function roleSelect(name, roles, value, attrs = '') {
   return `<select class="pp-role" name="${name}" ${attrs}>${roles.map(r => `<option value="${r}"${r === value ? ' selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select>`;
@@ -52,7 +53,7 @@ export async function copyFrom(input) {
 }
 
 export function peopleRow(p, { right = '', sub = '' } = {}) {
-  return `<div class="pp-row" data-uid="${esc(p.id)}">${avatar(p.name)}<div class="pp-who"><b>${esc(p.name)}</b><small>${sub || esc(p.email || '')}</small></div><div class="pp-right">${right}</div></div>`;
+  return `<div class="pp-row" data-uid="${esc(p.id)}">${avatar(p)}<div class="pp-who"><b>${esc(p.name)}</b><small>${sub || esc(p.email || '')}</small></div><div class="pp-right">${right}</div></div>`;
 }
 
 export function invitesList(invites, manage) {

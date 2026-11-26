@@ -2,12 +2,13 @@ import { $, esc, uid } from '../core/util.js';
 import { api } from '../core/api.js';
 import { curveNew, lineStyle, styleOf } from '../core/styles.js';
 import { canvas } from '../core/dom.js';
-import { S, RO, checkpoint, cur, els, freshId, putAsset, save, sel, selLine, serverOK, setFreshId, setSelLine } from '../core/store.js';
+import { S, RO, checkpoint, cur, els, freshId, save, sel, selLine, serverOK, setFreshId, setSelLine } from '../core/store.js';
 import { V, toWorld, viewCenter } from '../canvas/viewport.js';
 import { childrenOf, maxZ } from '../core/model.js';
 import { TYPES } from '../cards/types.js';
 import { rebuildCard, renderBoard } from '../canvas/render.js';
-import { selectOnly } from '../canvas/selection.js';
+import { refreshSel, selectOnly } from '../canvas/selection.js';
+import { queueUpload } from './uploads.js';
 import { exitEdit, startEdit } from '../canvas/editing.js';
 import { toast } from '../ui/toast.js';
 import { openDoc } from '../cards/doc.js';
@@ -22,6 +23,14 @@ import { showLogoPicker } from '../cards/icon.js';
 export function createItem(type, at, opts = {}) {
   exitEdit();
   checkpoint();
+  const it = addItem(type, at, opts);
+  save(); renderBoard(); selectOnly(it.id);
+  appear(els.get(it.id));
+  dispatchEvent(new CustomEvent('nk:created', { detail: { type } }));
+  return it;
+}
+/** A new card in the state of the board, without an undo step, save or redraw (the caller does those). */
+function addItem(type, at, opts) {
   const T = TYPES[type];
   // your last colour for this kind of card (and header row for tables, text alignment) unless the caller sets one
   const it = { id: uid(), board: cur, type, x: Math.round(at.x), y: Math.round(at.y), w: T.w, z: maxZ() + 1, col: null, order: 0, color: styleOf(type).color ?? null, data: T.init ? T.init() : {}, ...opts };
@@ -39,9 +48,6 @@ export function createItem(type, at, opts = {}) {
     S.items[it.id] = it;
     kids.forEach((k, i) => (k.order = i));
   } else S.items[it.id] = it;
-  save(); renderBoard(); selectOnly(it.id);
-  appear(els.get(it.id));
-  dispatchEvent(new CustomEvent('nk:created', { detail: { type } }));
   return it;
 }
 export let cascade = 0;
@@ -73,7 +79,7 @@ export function createFromTool(tool, at, colTarget) {
   else if (tool === 'todo' || tool === 'column' || tool === 'group') startEdit(it.id);
   else if (tool === 'board') { startEdit(it.id); document.execCommand('selectAll'); }
   else if (tool === 'link' || tool === 'comment') $('input', els.get(it.id))?.focus();
-  else if (tool === 'sketch' || tool === 'table') startEdit(it.id);
+  else if (tool === 'sketch' || tool === 'table' || tool === 'poll') startEdit(it.id);
   else if (tool === 'doc') openDoc(it.id);
 }
 /** The Icon tool: choose a logo or icon first, then it lands where the tool was dropped (or in view). */
@@ -110,37 +116,27 @@ export async function setLink(id, raw) {
 /* ---------- files & images ---------- */
 export let pendingAt = null;
 export const readFile = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
-/** Downscale very large photos before upload; returns the blob to upload and its width. */
-export async function imageData(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
-    const max = 2400, s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-    if ((s === 1 && file.size < 3e6) || /gif|svg/.test(file.type)) return { blob: file, w: img.naturalWidth, h: img.naturalHeight };
-    const c = document.createElement('canvas');
-    c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    const type = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-    const blob = await new Promise(res => c.toBlob(res, type, 0.88));
-    return { blob, w: c.width, h: c.height };
-  } finally { URL.revokeObjectURL(url); }
-}
-export async function handleFiles(files, at, extra = {}) {
-  let i = 0;
-  for (const f of files) {
-    const pos = { x: at.x + i * 28, y: at.y + i * 28 }; i++;
-    try {
-      if (f.type.startsWith('image/')) {
-        const { blob, w, h } = await imageData(f);
-        const asset = await putAsset(blob, f.name || 'image');
-        createItem('image', pos, { ...extra, w: Math.min(w || 300, 320), data: { asset, caption: '', ratio: w && h ? h / w : null } });
-      } else {
-        if (f.size > 50 * 1048576) { toast(`${f.name} is larger than 50 MB`); continue; }
-        const asset = await putAsset(f, f.name);
-        createItem('file', pos, { ...extra, data: { asset, name: f.name, size: f.size, mime: f.type } });
-      }
-    } catch (err) { console.error(err); toast(`Couldn’t add ${f.name}: ${err.message}`); }
-  }
+/**
+ * Files dropped, pasted or picked: a card for each straight away, which then fills in while the file uploads in the
+ * background (actions/uploads.js), so a hundred photos never hold up the board.
+ */
+export function handleFiles(files, at, extra = {}) {
+  if (!files.length) return;
+  exitEdit();
+  checkpoint();
+  const made = files.map((f, i) => {
+    const pos = { x: at.x + i * 28, y: at.y + i * 28 };
+    const image = f.type.startsWith('image/');
+    const it = addItem(image ? 'image' : 'file', pos, image
+      ? { ...extra, data: { caption: '', ratio: null, upload: uid() } }
+      : { ...extra, data: { name: f.name, size: f.size, mime: f.type, upload: uid() } });
+    return [it, f];
+  });
+  save(); renderBoard();
+  sel.clear(); setSelLine(null);
+  for (const [it] of made) { sel.add(it.id); appear(els.get(it.id)); dispatchEvent(new CustomEvent('nk:created', { detail: { type: it.type } })); }
+  refreshSel();
+  for (const [it, f] of made) queueUpload(it, f);
 }
 export function insertText(txt, at) {
   txt = (txt || '').trim(); if (!txt) return;
@@ -178,16 +174,11 @@ export function init() {
   });
   canvas.addEventListener('drop', e => {
     e.preventDefault();
-    const landed = pad; pad = null; padOff();
-    if (RO) { landed?.remove(); return; }
+    padOff();
+    if (RO) return;
     const p = toWorld(e.clientX, e.clientY);
     const files = [...(e.dataTransfer.files || [])];
-    if (files.length) {
-      // stays where it landed, spinning, until the uploads are done
-      if (landed) { landed.classList.add('busy'); landed.querySelector('b').textContent = files.length === 1 ? 'Uploading…' : `Uploading ${files.length}…`; canvas.appendChild(landed); }
-      return handleFiles(files, p).finally(() => landed?.remove());
-    }
-    landed?.remove();
+    if (files.length) return handleFiles(files, p);
     const url = e.dataTransfer.getData('text/uri-list') || '';
     const txt = e.dataTransfer.getData('text/plain') || '';
     insertText(url || txt, p);

@@ -7,7 +7,7 @@ import { renderLines } from '../canvas/lines.js';
 import { refreshSel, selectOnly } from '../canvas/selection.js';
 import { startEdit } from '../canvas/editing.js';
 import { createFromTool, handleFiles, insertText, spawnPoint } from '../actions/create.js';
-import { copySel, deleteSelection, duplicate, pasteClip } from '../actions/edit.js';
+import { copySel, deleteSelection, duplicate, pasteClip, readClip, writeClip } from '../actions/edit.js';
 import { positionBars } from '../ui/floatbars.js';
 import { hideMenu, selectAll } from '../ui/menus.js';
 import { searchEl } from '../ui/search.js';
@@ -75,7 +75,7 @@ export function init() {
       nudgeT = Date.now();
       const d = e.shiftKey ? 10 : 1;
       const dx = e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0, dy = e.key === 'ArrowUp' ? -d : e.key === 'ArrowDown' ? d : 0;
-      for (const id of sel) { const it = S.items[id]; if (it && !it.col) { it.x += dx; it.y += dy; const el = els.get(id); el.style.left = it.x + 'px'; el.style.top = it.y + 'px'; } }
+      for (const id of sel) { const it = S.items[id]; if (it && !it.col) { it.x += dx; it.y += dy; const el = els.get(id); if (el) { el.style.left = it.x + 'px'; el.style.top = it.y + 'px'; } } }
       save(); renderLines(); positionBars();
     } else if (!m && !e.altKey && TOOL_KEYS[k]) {
       e.preventDefault();
@@ -96,14 +96,14 @@ export function init() {
     if (RO || accountOpen()) return;
     if (e.target.closest?.('input,textarea,[contenteditable=true]')) return;
     if (!copySel()) return;
-    e.clipboardData.setData('text/plain', clipText);
+    writeClip(e.clipboardData);
     e.preventDefault();
   });
   document.addEventListener('cut', e => {
     if (RO || accountOpen()) return;
     if (e.target.closest?.('input,textarea,[contenteditable=true]')) return;
     if (!copySel()) return;
-    e.clipboardData.setData('text/plain', clipText);
+    writeClip(e.clipboardData);
     e.preventDefault(); deleteSelection();
   });
   document.addEventListener('paste', e => {
@@ -120,7 +120,7 @@ export function init() {
     const files = [...e.clipboardData.files];
     if (files.length) return handleFiles(files, at);
     const t = e.clipboardData.getData('text/plain');
-    if (clip && t === clipText) return pasteClip(at);
+    if (readClip(e.clipboardData) || (clip && t === clipText)) return pasteClip(at);
     insertText(t, at);
   });
 }

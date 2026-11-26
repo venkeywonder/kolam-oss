@@ -254,7 +254,7 @@ final class Spaces
         $s = $u ? self::ws($u, $id, true) : Db::one('SELECT * FROM spaces WHERE id = ?', [$id]);
         if (!$s || $s['deleted_at'] === null || ($u && $s['me'] !== 'owner')) Http::fail(404, 'Workspace not found');
         Db::tx(function () use ($s, $id) {
-            foreach (['entities', 'space_members', 'board_members', 'board_access', 'invites', 'shares', 'history'] as $t) Db::q("DELETE FROM $t WHERE space_id = ?", [$id]);
+            foreach (['entities', 'asset_refs', 'space_members', 'board_members', 'board_access', 'invites', 'shares', 'history'] as $t) Db::q("DELETE FROM $t WHERE space_id = ?", [$id]);
             Db::q('DELETE FROM spaces WHERE id = ?', [$id]);
             self::dropTrashEntry($s['owner_id'], $id);
         });

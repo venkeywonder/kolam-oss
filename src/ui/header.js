@@ -21,6 +21,7 @@ import { hasStyles, remember, resetStyles } from '../core/styles.js';
 import { openAccountSettings } from './account.js';
 import { openAdmin } from './admin.js';
 import { getConfig, hasUnseenChangelog, helpMenuEntries } from '../features/support.js';
+import { paintAvatarEl } from './avatars.js';
 
 const tick = on => (on ? '<span class="tick">✓</span>' : '');
 
@@ -41,7 +42,7 @@ const exportMenuBase = () => [
   { label: 'Plain text', icon: 'text', act: () => downloadText(fileSafe(S.boards[cur].title) + '.txt', mdToText(boardToMd(cur))) },
   { label: 'Print or save as PDF', icon: 'print', kbd: '⌘P', act: () => { hideBars(); setTimeout(() => print(), 50); } },
   '-',
-  { label: 'Back up everything (.json)', icon: 'exportI', act: exportAll },
+  { label: 'Back up everything (.zip)', icon: 'exportI', act: exportAll },
   { label: 'Restore from backup…', icon: 'importI', act: () => $('#importPick').click() },
 ];
 
@@ -96,10 +97,10 @@ const accountMenu = () => [
 ];
 
 export function paintAvatar() {
-  const a = $('#avatarBtn'); if (!a) return;
+  const a = $('#avatarBtn'); if (!a || !user) return;
   const n = userName();
-  a.textContent = (n.trim()[0] || '?').toUpperCase();
-  a.title = `${n}${user?.email ? ' · ' + user.email : ''}`;
+  paintAvatarEl(a, user.id, n);
+  a.title = `${n}${user.email ? ' · ' + user.email : ''}`;
 }
 let helpConfig = {};
 /** Loads the help menu's config and unread "What's new" dot; call again once a user signs in. */

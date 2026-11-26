@@ -2,8 +2,21 @@
 
 ## 2026-11-26
 
+- **Polls**: ask a question and let your team vote. Answers can have words, pictures or people, and everyone sees who voted for what.
+- **Copy and paste keeps your cards**: to-dos, columns, boards and every other card paste as they were, on any board, workspace or tab.
+- **Profile pictures**: pick one of 24 illustrations or upload a photo, then crop, rotate and adjust it.
 - **Groups keep their cards inside**: a card is always fully in or out of a group, and resizing never cuts one off.
 - **Minimize groups**: fold a group down to its name; its cards travel with it until you maximize it.
+- **Smaller improvements**: `php server/bin/kolam user:create` works again.
+
+## 2026-11-25
+
+- **Install Kolam as an app**: click **Install app** in the top bar to open Kolam in its own window from your Dock, Start menu or app launcher.
+- **Desktop notifications**: get notified about mentions and replies even when Kolam is in the background.
+- **Big boards stay fast**: boards with thousands of pictures and files pan and zoom smoothly, loading only what's on screen.
+- **Faster uploads**: dropped files appear on the board at once with a progress bar, and resume after a dropped connection.
+- **Backups as ZIP**: **Back up everything** now downloads a ZIP with all your files, and restores from it.
+- **Smaller improvements**: your first notification now shows a pop-up, the app icon shows your unread count, and text stays sharp after zooming in.
 
 ## 2026-11-24
 

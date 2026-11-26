@@ -11,6 +11,7 @@ import { init as init_app_keyboard } from './app/keyboard.js';
 import { init as init_ui_toast } from './ui/toast.js';
 import { init as init_ui_theme } from './ui/theme.js';
 import { init as init_cards_table } from './cards/table.js';
+import { init as init_cards_poll } from './cards/poll.js';
 import { init as init_cards_doc } from './cards/doc.js';
 import { init as init_cards_drawing } from './cards/drawing.js';
 import { init as init_cards_embeds } from './cards/embeds.js';
@@ -26,6 +27,8 @@ import { init as init_features_spaces, inviteLanding, paintSpaceBtn, refreshCont
 import { init as init_features_comments } from './features/comments.js';
 import { init as init_features_history } from './features/history.js';
 import { init as init_ui_notify } from './ui/notify.js';
+import { init as init_core_pwa } from './core/pwa.js';
+import { init as init_ui_install } from './ui/install.js';
 import { init as init_verify_banner } from './ui/verify-banner.js';
 import { init as init_onboarding } from './features/onboarding.js';
 import { $, uid } from './core/util.js';
@@ -57,6 +60,7 @@ init_app_keyboard();
 init_ui_toast();
 init_ui_theme();
 init_cards_table();
+init_cards_poll();
 init_cards_doc();
 init_cards_drawing();
 init_cards_embeds();
@@ -71,6 +75,8 @@ init_features_spaces();
 init_features_comments();
 init_features_history();
 init_ui_notify();
+init_core_pwa();
+init_ui_install();
 
 /* ================= boot ================= */
 (async () => {

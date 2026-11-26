@@ -1,9 +1,9 @@
 /* Who else is here: avatars in the board bar, and an "X is editing" marker on the card someone is typing in. */
 import { $, $$, esc } from '../core/util.js';
 import { S, cur, els, user } from '../core/store.js';
+import { avatarHtml, hue } from './avatars.js';
 
 let people = [];                   // everyone else in this space: { id, name, board, editing }
-export const hue = id => [...(id || '?')].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 const first = n => (n || '?').trim().split(/\s+/)[0];
 
 export function setPeople(list) {
@@ -21,7 +21,7 @@ export function paintPresence() {
   el.hidden = !list.length;
   el.innerHTML = list.slice(0, 5).map(p => {
     const where = p.board === cur ? 'on this board' : p.board && S?.boards[p.board] ? `on “${S.boards[p.board].title}”` : 'in this space';
-    return `<span class="pr-av${p.board === cur ? '' : ' away'}" style="--h:${hue(p.id)}" title="${esc(p.name)} · ${esc(where)}">${esc(first(p.name)[0]?.toUpperCase() || '?')}</span>`;
+    return avatarHtml(p.id, p.name, { cls: 'pr-av' + (p.board === cur ? '' : ' away'), attrs: `title="${esc(p.name)} · ${esc(where)}"` });
   }).join('') + (list.length > 5 ? `<span class="pr-more" title="${esc(list.slice(5).map(p => p.name).join(', '))}">+${list.length - 5}</span>` : '');
 }
 

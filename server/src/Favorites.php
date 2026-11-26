@@ -11,7 +11,7 @@ namespace Kolam;
 final class Favorites
 {
     public const TOOLS = ['text', 'note', 'link', 'todo', 'line', 'icon', 'group', 'board', 'shortcut', 'column',
-        'comment', 'table', 'doc', 'sketch', 'swatch', 'image', 'upload', 'draw'];
+        'comment', 'table', 'doc', 'sketch', 'swatch', 'image', 'upload', 'draw', 'poll'];
     public const MAX = 8;
 
     /** The person's favorites, or null if they never changed the bar. */

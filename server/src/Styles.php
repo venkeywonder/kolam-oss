@@ -19,7 +19,7 @@ namespace Kolam;
 final class Styles
 {
     public const COLORS = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'dark'];
-    private const CARDS = ['text', 'note', 'todo', 'link', 'image', 'file', 'board', 'shortcut', 'column', 'comment', 'table', 'doc', 'swatch', 'sketch', 'drawing', 'icon', 'group'];
+    private const CARDS = ['text', 'note', 'todo', 'link', 'image', 'file', 'board', 'shortcut', 'column', 'comment', 'table', 'doc', 'swatch', 'sketch', 'drawing', 'icon', 'group', 'poll'];
     public const ALIGNABLE = ['text', 'note', 'todo', 'column', 'comment', 'image', 'table', 'doc'];
     public const ALIGNS = ['left', 'center', 'right', 'justify'];
     private const FIELDS = [

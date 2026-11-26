@@ -2,6 +2,7 @@
 import { esc } from '../core/util.js';
 import { api } from '../core/api.js';
 import { track } from '../core/analytics.js';
+import { forgetDevice } from '../core/pwa.js';
 
 // the Kolam emblem (made by brand/generate.py); CSS shows the one for the theme
 const LOGO = ['light', 'dark'].map((t) => `<img class="emblem emblem-${t}" src="src/assets/emblem-${t}.svg" width="40" height="40" alt="">`).join('');
@@ -422,6 +423,7 @@ export function showLinkPassword(token, message = '') {
 }
 
 export async function signOut() {
+  await forgetDevice().catch(() => {});   // no desktop notifications for this account here any more
   try { await api('auth/logout', { method: 'POST' }); } catch {}
   location.reload();
 }

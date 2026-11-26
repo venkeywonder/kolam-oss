@@ -310,6 +310,29 @@ final class Db
             20 => [
                 fn() => Spaces::migratePersonal(),
             ],
+            // desktop notifications (Web Push, see Push.php): one subscription per browser, tied to the session that made it
+            21 => [
+                "CREATE TABLE push_subscriptions (id CHAR(64) PRIMARY KEY, user_id VARCHAR(32) NOT NULL, session_hash CHAR(64) NOT NULL,
+                  endpoint TEXT NOT NULL, p256dh VARCHAR(100) NOT NULL, auth VARCHAR(32) NOT NULL, ua VARCHAR(255), created_at BIGINT NOT NULL)",
+                "CREATE INDEX push_subscriptions_user ON push_subscriptions (user_id)",
+            ],
+            // chunked/direct uploads (Assets::serve tiers, Uploads.php): declared variants on assets, in-progress uploads,
+            // and an index of which cards reference which asset (replaces the old "data LIKE '%id%'" scan)
+            22 => [
+                "ALTER TABLE assets ADD COLUMN variants TEXT",
+                "CREATE TABLE uploads (id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32) NOT NULL, space_id VARCHAR(32) NOT NULL,
+                  asset_id VARCHAR(48) NOT NULL, name VARCHAR(255) NOT NULL, type VARCHAR(120) NOT NULL, size BIGINT NOT NULL,
+                  part_size INT NOT NULL, parts INT NOT NULL, target VARCHAR(8) NOT NULL, s3_upload_id TEXT, variants TEXT, created_at BIGINT NOT NULL)",
+                "CREATE INDEX uploads_user ON uploads (user_id)",
+                "CREATE TABLE asset_refs (asset_id VARCHAR(48) NOT NULL, space_id VARCHAR(32) NOT NULL, kind VARCHAR(16) NOT NULL,
+                  entity_id VARCHAR(64) NOT NULL, PRIMARY KEY (space_id, kind, entity_id, asset_id))",
+                "CREATE INDEX asset_refs_asset ON asset_refs (asset_id)",
+                fn() => AssetRefs::backfill(),
+            ],
+            // profile pictures (Avatars.php): null, an illustration "p:NN", or an uploaded picture's asset id
+            23 => [
+                "ALTER TABLE users ADD COLUMN avatar VARCHAR(64)",
+            ],
         ];
         // Most requests find the schema current. Otherwise one request migrates while the others wait for it, then
         // read the version again (two requests running the same step would fail on "table already exists").

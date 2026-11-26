@@ -206,6 +206,7 @@ final class Sync
             Db::q('INSERT INTO entities (space_id, kind, id, parent, data, rev, deleted, updated_at, created_by, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?)',
                 [$spaceId, $k, $id, $parent, $data, $rev, $del, time(), $uid, $uid]);
         }
+        AssetRefs::sync($spaceId, $k, $id, $d);
     }
 
     /** Bump a space's revision for server-side writes; returns the new revision. */
@@ -275,13 +276,18 @@ final class Sync
         return self::can($vis0, $from, 'editor') ? true : 'You can’t change the trash of this board.';
     }
 
-    /** Server-owned fields: who locked a card, who deleted something. */
+    /** Server-owned fields: who locked a card, who deleted something, a poll's votes. */
     private static function stamp(string $k, array $d, ?array $od, array $u): array
     {
         if ($k === 'item') {
             if (!empty($d['locked'])) $d['lockedBy'] = !empty($od['locked']) ? ($od['lockedBy'] ?? null) : $u['id'];
             else unset($d['lockedBy']);
             if (($d['lockedBy'] ?? 0) === null) unset($d['lockedBy']);
+            // votes change only through Polls::vote; a new card (a copy, or one back from the trash) keeps what it brings
+            if (($d['type'] ?? '') === 'poll' && $od !== null && is_array($d['data'] ?? null)) {
+                $v = $od['data']['votes'] ?? null;
+                if ($v) $d['data']['votes'] = $v; else unset($d['data']['votes']);
+            }
         }
         if ($k === 'trash') {
             $d['by'] = $od['by'] ?? ['id' => $u['id'], 'name' => $u['name'] ?? ''];

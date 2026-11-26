@@ -1,26 +1,43 @@
 import { $ } from '../core/util.js';
-import { S, cur, getAsset, putAsset, redoStack, save, setCur, setS, undoStack } from '../core/store.js';
+import { API_BASE } from '../core/api.js';
+import { S, SPACE, putAsset, redoStack, save, setCur, setS, undoStack } from '../core/store.js';
 import { render } from '../canvas/render.js';
 import { toast } from '../ui/toast.js';
 import { confirmDialog } from '../ui/modal.js';
+import { zipBlob, zipEntries } from '../core/zip.js';
 
-/* ---------- full backup export / import (JSON with embedded files) ---------- */
-const blobToDataUrl = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+/*
+ * Backups: the server streams the space as a ZIP (data.json, boards as Markdown, every file as it is: Export.php), so
+ * a board with gigabytes of files never has to fit in the browser. Restoring reads that ZIP in place and uploads its
+ * files one by one; an older .json backup (files inside as data: URLs) still restores too.
+ */
+export function exportAll() {
+  location.href = `${API_BASE}spaces/${encodeURIComponent(SPACE)}/backup`;
+}
 
-export async function exportAll() {
-  toast('Preparing your backup…');
-  const used = new Set(Object.values(S.items).map(i => i.data?.asset).filter(Boolean));
-  const out = {};
-  for (const id of used) {
-    try { const r = await fetch(await getAsset(id)); if (r.ok) out[id] = await blobToDataUrl(await r.blob()); } catch {}
+/** The backup in a file: { o: data.json, file: id -> () => Promise<File> } */
+async function readBackup(f) {
+  if (!/\.zip$/i.test(f.name) && !/zip/.test(f.type)) {
+    const o = JSON.parse(await f.text());
+    const file = {};
+    for (const [id, d] of Object.entries(o.assets || {})) {
+      if (typeof d === 'string' && d.startsWith('data:')) file[id] = async () => new File([await (await fetch(d)).blob()], id);
+    }
+    return { o, file };
   }
-  const { views, ...state } = S;
-  const blob = new Blob([JSON.stringify({ app: 'kolam', version: 2, exportedAt: new Date().toISOString(), state, assets: out })], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `kolam-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  const entries = await zipEntries(f);
+  const found = [...entries.keys()].filter(n => n === 'data.json' || n.endsWith('/data.json'));
+  if (!found.length) throw new Error('there’s no data.json in it');
+  // a whole-account export has a folder per workspace
+  if (found.length > 1) throw new Error('it holds several workspaces. Unzip it and zip the folder of the one to restore');
+  const base = found[0].slice(0, -'data.json'.length);
+  const o = JSON.parse(await (await zipBlob(f, entries.get(found[0]))).text());
+  const file = {};
+  for (const [id, m] of Object.entries(o.files || {})) {
+    const e = entries.get(base + m.path);
+    if (e) file[id] = async () => new File([await zipBlob(f, e)], m.name || id, { type: m.mime || '' });
+  }
+  return { o, file };
 }
 
 export function init() {
@@ -28,16 +45,21 @@ export function init() {
     const f = e.target.files[0]; e.target.value = '';
     if (!f) return;
     try {
-      const o = JSON.parse(await f.text());
-      if (o.app !== 'kolam' || !o.state?.boards?.home) throw new Error('not a Kolam export');
+      const { o, file } = await readBackup(f);
+      if (o.app !== 'kolam' || !o.state?.boards?.home) throw new Error('not a Kolam backup');
       if (!await confirmDialog('Replace your current boards?', { body: 'Your boards will be replaced with the imported file.', ok: 'Replace', danger: true })) return;
+      // files go up a few at a time (each in parts, resuming after a dropped connection: core/upload.js)
+      const ids = Object.keys(file), remap = {};
+      let done = 0;
+      const next = async () => {
+        for (let id; (id = ids.shift());) {
+          const blob = await file[id]();
+          remap[id] = await putAsset(blob, blob.name);
+          toast(`Importing files… ${++done} of ${Object.keys(file).length}`);
+        }
+      };
       toast('Importing…');
-      const remap = {};
-      for (const [id, d] of Object.entries(o.assets || {})) {
-        if (typeof d !== 'string' || !d.startsWith('data:')) continue;
-        const blob = await (await fetch(d)).blob();
-        remap[id] = await putAsset(blob, id);
-      }
+      await Promise.all([next(), next(), next()]);
       for (const it of Object.values(o.state.items || {})) if (it.data?.asset && remap[it.data.asset]) it.data.asset = remap[it.data.asset];
       // comments in the backup go back to their cards; the server turns them into comments by you
       const { comments, threads, cnames, ...state } = o.state;

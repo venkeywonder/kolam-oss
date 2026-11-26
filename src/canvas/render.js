@@ -19,6 +19,7 @@ import { updateBadges } from '../ui/drawer.js';
 import { paintEditing, paintPresence } from '../ui/presence.js';
 import { badgeHtml, mountBadge, paintButton } from '../features/comments.js';
 import { drawOrder, isAway, refreshFolds } from '../cards/group.js';
+import { cull, mountIds, resetCull } from './cull.js';
 
 // one connection dot in the middle of each side; dragging one starts a line pinned to that point
 const CONN_DOTS = ['top', 'right', 'bottom', 'left'].map(s => `<div class="conn" data-side="${s}" title="Drag to connect"></div>`).join('');
@@ -37,18 +38,13 @@ export function renderCrumbs() {
 }
 export function renderBoard() {
   const keepEdit = editingId;
-  itemsLayer.innerHTML = ''; els.clear();
-  const frag = document.createDocumentFragment();
   refreshFolds();   // cards hidden in minimised groups aren't drawn
   const tops = itemsOf(cur).filter(i => (!i.col || !S.items[i.col]) && !isAway(i.id)).sort(drawOrder);
-  for (const it of tops) {
-    if (it.col && !S.items[it.col]) it.col = null; // orphan safety
-    let el;
-    try { el = makeCard(it); } catch (err) { console.error('Could not draw card', it.id, err); continue; }
-    el.style.left = it.x + 'px'; el.style.top = it.y + 'px';
-    frag.appendChild(el);
-  }
-  itemsLayer.appendChild(frag);
+  for (const it of tops) if (it.col) it.col = null; // orphan safety: its column is gone
+  resetCull(tops);
+  itemsLayer.innerHTML = ''; els.clear();
+  cull();
+  if (keepEdit) mountIds([keepEdit]);
   for (const id of [...sel]) if (!S.items[id] || S.items[id].board !== cur) sel.delete(id);
   if (selLine && (!S.lines[selLine] || S.lines[selLine].board !== cur)) setSelLine(null);
   emptyHint.hidden = tops.length > 0 || Object.values(S.lines).some(ln => ln.board === cur);

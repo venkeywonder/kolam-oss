@@ -132,6 +132,10 @@ it to finish; you can also run `server/bin/kolam migrate` right after deploying)
 | More traffic on one server | A larger server; PHP OPcache is already enabled by `deploy/php.ini`. |
 | Several app servers behind a load balancer | Use a **managed MySQL/PostgreSQL** database (`DB_DSN`, `DB_USER`, `DB_PASSWORD`) and an **S3-compatible bucket** for uploads (`ASSET_DRIVER=s3`, `S3_*`). Sessions and rate limits already live in the database, so any server can handle any request. Set `TRUST_PROXY=true`. |
 | A platform with a temporary disk | Possible with the same two changes: managed database + bucket. |
+| Large files without tying up PHP | With a bucket, `S3_DIRECT_UPLOADS=true` sends uploads straight from the browser to it (set its CORS once with `php server/bin/kolam s3-cors https://your-domain`). With local files, `ASSET_SENDFILE=x-accel` (nginx) or `x-sendfile` (Apache) lets the web server send downloads; see `deploy/`. |
+
+Desktop notifications and **Install app** need HTTPS (or `localhost`). They need no setup: the server makes its
+push key on first use.
 
 ## Running a public instance
 

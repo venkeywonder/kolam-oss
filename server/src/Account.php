@@ -105,7 +105,7 @@ final class Account
     private static function nukeSpace(string $spaceId): void
     {
         Db::q('DELETE FROM comment_reactions WHERE comment_id IN (SELECT id FROM comments WHERE space_id = ?)', [$spaceId]);
-        foreach (['entities', 'ylog', 'comments', 'comment_threads', 'history', 'shares', 'board_access', 'board_members',
+        foreach (['entities', 'asset_refs', 'ylog', 'comments', 'comment_threads', 'history', 'shares', 'board_access', 'board_members',
                   'presence', 'invites', 'space_members', 'notifications'] as $t) {
             Db::q("DELETE FROM $t WHERE space_id = ?", [$spaceId]);
         }
