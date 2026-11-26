@@ -39,7 +39,8 @@ src/
   cards/                card types: types.js (text, note, to-do, link, image, file, board, column, comment,
                         sketch, swatch, icon, group) + text (text straight on the board: font, size, bold/italic/underline, colour, fill;
                         as wide as its words until resized), table, doc, drawing, embeds, extras, board-icon (a board card's icon: any emoji, any
-                        Lucide icon, or an uploaded picture cropped to a square and stored at 216 × 216),
+                        Lucide icon, logo, AWS icon, or an uploaded picture cropped to a square and stored at 216 × 216; chosen in the
+                        icon picker below, with an Emoji tab),
                         icon (a logo straight on the board with a label under it, and the icon picker: logos by area, AWS by
                         service category, Lucide icons or an upload), group (a labelled box under the cards; moving it moves what's
                         wholly inside; minimise it to its name), poll (a question to vote on: answers with words, pictures or

@@ -351,6 +351,7 @@ final class BoardTools
                 $t = $d['target'] ?? '';
                 $o += ['board_id' => $t, 'title' => $w->boards[$t]['title'] ?? 'Missing board', 'cards' => count($w->itemsOf($t))];
                 if (!empty($d['asset'])) $o['icon'] = 'uploaded image';
+                elseif (!empty($d['logo'])) $o['icon'] = 'logo: ' . $d['logo'];
                 elseif (!empty($d['icon'])) { $o['icon'] = 'icon: ' . $d['icon']; $o['icon_name'] = $d['icon']; }
                 elseif (!empty($d['emoji'])) $o['icon'] = $d['emoji'];
                 break;
@@ -704,7 +705,7 @@ final class BoardTools
                 $n['z'] = ++$z;
                 if ($bid === self::UNSORTED) $n['order'] = (int) (microtime(true) * 1000) + $z;
             }
-            if ($n['type'] === 'board') $n['data'] = ['target' => self::cloneBoard($w, $src['data']['target'] ?? '', $bid)] + array_intersect_key($src['data'] ?? [], ['emoji' => 1, 'icon' => 1, 'asset' => 1]);
+            if ($n['type'] === 'board') $n['data'] = ['target' => self::cloneBoard($w, $src['data']['target'] ?? '', $bid)] + array_intersect_key($src['data'] ?? [], ['emoji' => 1, 'icon' => 1, 'logo' => 1, 'dark' => 1, 'asset' => 1]);
             $w->putItem($n);
         }
         $end = fn(array $e) => isset($e['item']) ? (isset($map[$e['item']]) ? ['item' => $map[$e['item']]] + $e : null)
@@ -883,13 +884,13 @@ final class BoardTools
                 $icon = self::str($a['icon'], 16);
                 if (mb_strlen($icon) > 4) throw new ToolError('icon must be a single emoji');
                 // an emoji replaces an icon or picture picked in the app
-                unset($card['data']['icon'], $card['data']['asset']);
+                unset($card['data']['icon'], $card['data']['logo'], $card['data']['dark'], $card['data']['asset']);
                 if ($icon === '') unset($card['data']['emoji']); else $card['data']['emoji'] = $icon;
                 $w->putItem($card);
             }
             if (array_key_exists('icon_name', $a)) {
                 $name = self::str($a['icon_name'], 60);
-                unset($card['data']['emoji'], $card['data']['asset']);
+                unset($card['data']['emoji'], $card['data']['logo'], $card['data']['dark'], $card['data']['asset']);
                 if ($name === '') unset($card['data']['icon']);
                 else {
                     if (!isset(self::iconCatalog()['lucide'][$name])) throw new ToolError("No Lucide icon named $name (call list_icons with a \"lucide/\" ref)");

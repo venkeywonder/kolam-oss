@@ -19,8 +19,7 @@ import { exportAll } from '../features/io.js';
 import { toast } from './toast.js';
 import { lightbox } from './modal.js';
 import { openDoc } from '../cards/doc.js';
-import { showIconPicker } from '../cards/board-icon.js';
-import { setIconOf, showLogoPicker } from '../cards/icon.js';
+import { setIconOf, showBoardIconPicker, showLogoPicker } from '../cards/icon.js';
 import { foldGroup, groupAround, setGroupBorder } from '../cards/group.js';
 import { editLineLabel } from '../canvas/line-labels.js';
 import { endsOf, routeOf } from '../canvas/lines.js';
@@ -73,7 +72,7 @@ export function showItemMenu(x, y) {
   if (one?.type === 'doc') m.push({ label: 'Open document', icon: 'open', act: () => openDoc(one.id) });
   if (one?.type === 'image') m.push({ label: 'View full size', icon: 'expand', act: () => lightbox(one.id) });
   if (one && TYPES[one.type].edit && !one.locked) m.push({ label: one.type === 'sketch' ? 'Draw' : 'Edit', icon: 'edit', kbd: '↵', act: () => startEdit(one.id) });
-  if (one?.type === 'board') m.push({ label: 'Change icon…', icon: 'board', act: () => showIconPicker(one.id, x, y) });
+  if (one?.type === 'board') m.push({ label: 'Change icon…', icon: 'board', act: () => showBoardIconPicker(one.id, x, y) });
   if ((one?.type === 'icon' || one?.type === 'group') && !one.locked) m.push({ label: one.type === 'icon' ? 'Change icon…' : one.data.ref || one.data.asset ? 'Change icon…' : 'Add icon…', icon: 'logo', act: () => pickIconFor(one, x, y) });
   if (one?.type === 'group' && !one.locked) m.push({ label: one.data.solid ? 'Dashed border' : 'Solid border', icon: 'group', act: () => setGroupBorder([one.id], !one.data.solid) });
   if (one?.type === 'group') m.push(one.data.collapsed ? { label: 'Maximize group', icon: 'expand', act: () => foldGroup(one.id, false) }

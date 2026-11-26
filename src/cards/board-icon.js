@@ -1,16 +1,25 @@
 /*
  * The icon on a board's card (and on shortcuts to it): the default board glyph, any emoji, any Lucide icon
- * (src/vendor/lucide.json, loaded the first time one is needed) or an uploaded picture filling the tile.
- * On the card, data.emoji / data.icon (a Lucide name) / data.asset (the uploaded picture); at most one is set.
+ * (src/vendor/lucide.json, loaded the first time one is needed), a logo from src/vendor/logos (the same ones as the
+ * Icon element: logos, AWS) or an uploaded picture filling the tile.
+ * On the card, data.emoji / data.icon (a Lucide name) / data.logo (a logo ref such as 'dev/docker' or 'aws/amazon-ec2',
+ * with data.dark from the logo index) / data.asset (the uploaded picture); at most one is set.
+ * The picker is showBoardIconPicker in cards/icon.js.
  */
-import { $, esc } from '../core/util.js';
+import { esc } from '../core/util.js';
 import { assetUrl } from '../core/api.js';
 import { icon } from '../ui/icons.js';
-import { ctxmenu } from '../core/dom.js';
-import { S, checkpoint, els, putAsset, save } from '../core/store.js';
-import { rebuildCard } from '../canvas/render.js';
-import { hideMenu } from '../ui/menus.js';
-import { toast } from '../ui/toast.js';
+import { isDark } from '../ui/theme.js';
+
+/* ---------- logos (src/vendor/logos) ---------- */
+export const LOGO_REF = /^(aws|dev|brand)\/[\w.-]+$/;
+const LOGOS = new URL('../vendor/logos/', import.meta.url);
+export const logosUrl = file => new URL(file, LOGOS).href;
+/** A logo's SVG; dark = 2 means AWS drew a version for dark boards. */
+const logoUrl = (ref, dark) => logosUrl(ref + (dark ? '.dark' : '') + '.svg');
+/** An <img> of a logo for the current theme; dark = 1 is a black logo, inverted on a dark board. */
+export const logoImg = (ref, dark, extra = '') =>
+  `<img src="${esc(logoUrl(ref, dark === 2 && isDark()))}" alt="" draggable="false"${dark === 1 ? ' class="ic-inv"' : ''}${extra}>`;
 
 /* ---------- Lucide icons ---------- */
 let lucide = null, loading = null;
@@ -42,6 +51,7 @@ export function searchLucide(q) {
 /** What goes inside a board tile for a board card's data. */
 export function boardIconHtml(d, size = 30) {
   if (d?.asset) return `<img class="bd-img" src="${esc(assetUrl(d.asset))}" alt="" draggable="false">`;
+  if (d?.logo && LOGO_REF.test(d.logo)) return `<span class="bd-logo">${logoImg(d.logo, d.dark)}</span>`;
   if (d?.icon) return lucideIcon(d.icon, size);
   if (d?.emoji) return `<span class="bd-emoji">${esc(d.emoji)}</span>`;
   return icon('board', size);
@@ -81,96 +91,3 @@ export async function iconImage(file) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-/* ---------- the picker ---------- */
-const EMOJI = ['🎨', '💡', '📚', '🎬', '✏️', '📷', '🎵', '🗺️', '🧠', '📅', '🚀', '⭐', '💼', '🏠', '🍳', '✈️', '🎮', '🌱',
-  '🛍️', '💬', '📈', '🔬', '❤️', '🎉', '📝', '📌', '🗂️', '🧩', '🎯', '🔥', '🌍', '☕', '🏋️', '🧘', '💰', '🛠️',
-  '🎁', '🐾', '🌸', '🌙', '☀️', '⚡', '🔒', '👥', '🎓', '🩺', '🧪', '🏆'];
-const ICON_LIMIT = 168;
-const oneEmoji = v => {
-  const g = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(v.trim())].map(x => x.segment);
-  return g.length === 1 && /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(g[0]) ? g[0] : null;
-};
-
-function setIcon(id, patch) {
-  const it = S.items[id]; if (!it) return;
-  checkpoint();
-  delete it.data.emoji; delete it.data.icon; delete it.data.asset;
-  Object.assign(it.data, patch);
-  save(); rebuildCard(id);
-  // shortcuts to the board on screen show its icon too
-  for (const s of Object.values(S.items)) if (s.type === 'shortcut' && s.data.target === it.data.target && els.get(s.id)) rebuildCard(s.id);
-}
-
-export function showIconPicker(id, x, y) {
-  const d = S.items[id]?.data || {};
-  const R = ICON_RULES, mac = /Mac/.test(navigator.platform);
-  ctxmenu.innerHTML = `<div class="bip">
-    <div class="mhead">Board icon</div>
-    <div class="bip-tabs" role="tablist">${['emoji', 'icons', 'image'].map(t => `<button role="tab" data-tab="${t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
-    <div class="bip-pane" data-pane="emoji">
-      <input class="bip-field" data-emoji-in placeholder="Type or paste any emoji" maxlength="32" spellcheck="false" aria-label="Any emoji">
-      <div class="bip-note">${mac ? 'Press ⌃⌘Space for every emoji' : 'Press Win + . for every emoji'}</div>
-      <div class="memoji">${EMOJI.map(e => `<button data-em="${e}">${e}</button>`).join('')}</div>
-    </div>
-    <div class="bip-pane" data-pane="icons" hidden>
-      <input class="bip-field" type="search" data-icon-q placeholder="Search icons" spellcheck="false" aria-label="Search icons">
-      <div class="bip-icons"><div class="bip-note">Loading icons…</div></div>
-    </div>
-    <div class="bip-pane" data-pane="image" hidden>
-      <button class="bip-up" data-upload>${icon('upload', 22)}<b>Upload an image</b><span>PNG, JPG, WebP, GIF or SVG · up to ${R.maxMB} MB</span></button>
-      <div class="bip-note">At least ${R.min} × ${R.min} px and no more than ${R.ratio}:1. It fills the ${R.min} × ${R.min} tile: cropped to a square and saved at ${R.side} × ${R.side} px.</div>
-      <div class="bip-err" role="alert" hidden></div>
-      <input type="file" accept="${R.types.join(',')}" hidden data-file>
-    </div>
-    <div class="msep"></div>
-    <button class="mi" data-reset>${icon('board', 16)}<span>Default icon</span></button>
-  </div>`;
-  ctxmenu.hidden = false;
-  ctxmenu.style.left = Math.max(8, Math.min(x, innerWidth - ctxmenu.offsetWidth - 8)) + 'px';
-  ctxmenu.style.top = Math.max(8, Math.min(y, innerHeight - ctxmenu.offsetHeight - 8)) + 'px';
-
-  const pane = t => {
-    ctxmenu.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
-    ctxmenu.querySelectorAll('[data-pane]').forEach(p => (p.hidden = p.dataset.pane !== t));
-    if (t === 'icons') { showIcons(); $('[data-icon-q]', ctxmenu).focus(); }
-    if (t === 'emoji') $('[data-emoji-in]', ctxmenu).focus();
-  };
-  const grid = $('.bip-icons', ctxmenu);
-  const showIcons = () => loadIcons().then(() => {
-    const names = searchLucide($('[data-icon-q]', ctxmenu).value.trim().toLowerCase());
-    grid.innerHTML = names.slice(0, ICON_LIMIT).map(n => `<button data-ic="${n}" title="${n}" class="${n === d.icon ? 'on' : ''}">${lucideSvg(n, 20)}</button>`).join('') +
-      (names.length ? (names.length > ICON_LIMIT ? `<div class="bip-note">${ICON_LIMIT} of ${names.length}; search to find more</div>` : '') : '<div class="bip-note">No icons match</div>');
-  }, () => { grid.innerHTML = '<div class="bip-note">Icons couldn’t load. Check your connection.</div>'; });
-
-  const emojiIn = $('[data-emoji-in]', ctxmenu);
-  emojiIn.addEventListener('input', () => { const e = oneEmoji(emojiIn.value); if (e) { hideMenu(); setIcon(id, { emoji: e }); } });
-  emojiIn.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    const em = oneEmoji(emojiIn.value);
-    if (em) { hideMenu(); setIcon(id, { emoji: em }); } else toast('Type or paste one emoji');
-  });
-  $('[data-icon-q]', ctxmenu).addEventListener('input', showIcons);
-
-  const err = $('.bip-err', ctxmenu), file = $('[data-file]', ctxmenu), up = $('[data-upload]', ctxmenu);
-  file.addEventListener('change', async () => {
-    const f = file.files[0]; file.value = ''; if (!f) return;
-    err.hidden = true; up.disabled = true; up.querySelector('b').textContent = 'Uploading…';
-    try {
-      const asset = await putAsset(await iconImage(f), 'board-icon.png');
-      hideMenu(); setIcon(id, { asset });
-    } catch (e) {
-      err.textContent = e.message || 'Upload failed'; err.hidden = false;
-      if (ctxmenu.hidden) toast(`Couldn’t use that image: ${e.message}`);
-    } finally { up.disabled = false; up.querySelector('b').textContent = 'Upload an image'; }
-  });
-
-  ctxmenu.onclick = e => {
-    const t = e.target.closest('[data-tab]'); if (t) return pane(t.dataset.tab);
-    if (e.target.closest('[data-upload]')) return file.click();
-    const em = e.target.closest('[data-em]'), ic = e.target.closest('[data-ic]');
-    if (em) { hideMenu(); setIcon(id, { emoji: em.dataset.em }); }
-    else if (ic) { hideMenu(); setIcon(id, { icon: ic.dataset.ic }); }
-    else if (e.target.closest('[data-reset]')) { hideMenu(); setIcon(id, {}); }
-  };
-  pane(d.asset ? 'image' : d.icon ? 'icons' : 'emoji');
-}

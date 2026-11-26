@@ -24,7 +24,7 @@ import { editLineLabel } from '../canvas/line-labels.js';
 import { renderLines } from '../canvas/lines.js';
 import { canReverse, lineGlyph, lineOpt, linePopHtml, reverseLine, setLineOpt } from './line-options.js';
 import { showArrangeMenu, toggleLock } from '../canvas/arrange.js';
-import { showIconPicker } from '../cards/board-icon.js';
+import { showBoardIconPicker } from '../cards/icon.js';
 import { moveToDialog } from '../actions/move.js';
 import { ALIGNABLE, ALIGNS, alignIcon, alignOf, setAlign } from '../cards/align.js';
 import { originalOf, shortcutTo, showOriginal } from '../features/shortcuts.js';
@@ -253,7 +253,7 @@ function ctxClick(e) {
     case 'open': openBoard(one.data.target); break;
     case 'shortcut': shortcutTo(one.data.target); break;
     case 'original': showOriginal(one.data.target); break;
-    case 'icon': { const r = b.getBoundingClientRect(); showIconPicker(one.id, r.right + 8, r.top); break; }
+    case 'icon': { const r = b.getBoundingClientRect(); showBoardIconPicker(one.id, r.right + 8, r.top); break; }
     case 'logo': { const r = b.getBoundingClientRect(); pickIconFor(one, r.right + 8, r.top); break; }
     case 'gborder': setGroupBorder([one.id], !one.data.solid); renderCtxTools(); break;
     case 'gfold': foldGroup(one.id, !one.data.collapsed); renderCtxTools(); break;

@@ -59,6 +59,7 @@
 .lgp .bip-field{margin-top:2px}
 .lgp-note{font-size:11px;padding:6px 10px 2px}
 .lgp-note:empty{display:none}
+.lgp .memoji{grid-template-columns:repeat(8,1fr)}
 .floatbar{position:fixed;z-index:60;background:var(--float);color:#fff;border-radius:10px;padding:4px;display:flex;align-items:center;gap:2px;box-shadow:0 8px 24px rgba(0,0,0,.22);animation:pop .14s var(--ease)}
 .floatbar button{border:0;background:none;color:#e9e9ee;height:30px;min-width:30px;padding:0 7px;border-radius:7px;display:grid;place-items:center;font-size:13px;font-weight:600;transition:background .1s}
 .floatbar button:hover{background:rgba(255,255,255,.12);color:#fff}

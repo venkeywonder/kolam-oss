@@ -6,35 +6,34 @@
  *   data.asset an uploaded picture, cropped to a square like a board icon
  * data.dark (from the logo index): 1 = a black logo, shown inverted on a dark board; 2 = AWS has its own dark-board version.
  * An icon element also has data.label, the words under it.
+ * The same picker, with an Emoji tab, sets a board card's icon (showBoardIconPicker; drawn by cards/board-icon.js).
  */
 import { $, esc } from '../core/util.js';
 import { assetUrl } from '../core/api.js';
 import { pal } from '../core/palette.js';
 import { ctxmenu } from '../core/dom.js';
-import { S, checkpoint, putAsset, save } from '../core/store.js';
+import { S, checkpoint, els, putAsset, save } from '../core/store.js';
 import { icon } from '../ui/icons.js';
-import { isDark, lineCol } from '../ui/theme.js';
+import { lineCol } from '../ui/theme.js';
 import { hideMenu } from '../ui/menus.js';
 import { toast } from '../ui/toast.js';
 import { rebuildCard } from '../canvas/render.js';
-import { ICON_RULES, iconImage, loadIcons, lucideIcon, searchLucide } from './board-icon.js';
+import { ICON_RULES, LOGO_REF, iconImage, loadIcons, logoImg, logosUrl, lucideIcon, searchLucide } from './board-icon.js';
 
-const LOGOS = new URL('../vendor/logos/', import.meta.url);
 let index = null, loading = null;
 function loadIndex() {
-  return (loading ||= fetch(new URL('index.json', LOGOS))
+  return (loading ||= fetch(logosUrl('index.json'))
     .then(r => { if (!r.ok) throw new Error('Logos couldn’t load'); return r.json(); })
     .then(d => (index = d))
     .catch(e => { loading = null; throw e; }));
 }
-const logoUrl = (ref, dark) => new URL(ref + (dark ? '.dark' : '') + '.svg', LOGOS).href;
 
 /** The picture for an icon's data, filling its box. color: a palette key for Lucide icons (they take a colour). */
 export function iconArt(d, color) {
   if (d?.asset) return `<img src="${esc(assetUrl(d.asset))}" alt="" draggable="false">`;
   const ref = d?.ref || '';
   if (ref.startsWith('lucide/')) return `<span class="ic-lucide" style="color:${color ? lineCol(pal(color)) : 'var(--ink)'}">${lucideIcon(ref.slice(7), 24)}</span>`;
-  if (/^(aws|dev|brand)\/[\w.-]+$/.test(ref)) return `<img src="${esc(logoUrl(ref, d.dark === 2 && isDark()))}" alt="" draggable="false"${d.dark === 1 ? ' class="ic-inv"' : ''}>`;
+  if (LOGO_REF.test(ref)) return logoImg(ref, d.dark);
   return icon('image', 24);
 }
 
@@ -43,16 +42,30 @@ const TABS = [['logos', 'Logos'], ['aws', 'AWS'], ['icons', 'Icons'], ['image', 
 const PREVIEW = 18;            // icons shown per group before "Show all"
 const LIMIT = 240;             // icons shown for a search
 let lastTab = 'logos';
+const EMOJI = ['🎨', '💡', '📚', '🎬', '✏️', '📷', '🎵', '🗺️', '🧠', '📅', '🚀', '⭐', '💼', '🏠', '🍳', '✈️', '🎮', '🌱',
+  '🛍️', '💬', '📈', '🔬', '❤️', '🎉', '📝', '📌', '🗂️', '🧩', '🎯', '🔥', '🌍', '☕', '🏋️', '🧘', '💰', '🛠️',
+  '🎁', '🐾', '🌸', '🌙', '☀️', '⚡', '🔒', '👥', '🎓', '🩺', '🧪', '🏆'];
+const oneEmoji = v => {
+  const g = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(v.trim())].map(x => x.segment);
+  return g.length === 1 && /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(g[0]) ? g[0] : null;
+};
 
 /**
  * Let someone choose an icon: logos (by area, or search), AWS service icons, plain icons, or their own picture.
- * onPick({ref, dark, title} | {asset, title}) gets the choice; onClear, when given, adds a "No icon" button.
+ * onPick({ref, dark, title} | {asset, title}) gets the choice; onClear, when given, adds a button that removes it
+ * (labelled clearLabel). onEmoji, when given, adds an Emoji tab first; tab picks the tab it opens on.
  */
-export function showLogoPicker(x, y, { heading = 'Icon', current = null, onPick, onClear } = {}) {
-  const R = ICON_RULES;
+export function showLogoPicker(x, y, { heading = 'Icon', current = null, tab: start = null, onPick, onEmoji, onClear, clearLabel = 'No icon', clearIcon = 'close' } = {}) {
+  const R = ICON_RULES, mac = /Mac/.test(navigator.platform);
+  const tabs = onEmoji ? [['emoji', 'Emoji'], ...TABS] : TABS;
   ctxmenu.innerHTML = `<div class="bip lgp">
     <div class="mhead">${esc(heading)}</div>
-    <div class="bip-tabs" role="tablist">${TABS.map(([t, n]) => `<button role="tab" data-tab="${t}">${n}</button>`).join('')}</div>
+    <div class="bip-tabs" role="tablist">${tabs.map(([t, n]) => `<button role="tab" data-tab="${t}">${n}</button>`).join('')}</div>
+    ${onEmoji ? `<div class="bip-pane" data-pane="emoji" hidden>
+      <input class="bip-field" data-emoji-in placeholder="Type or paste any emoji" maxlength="32" spellcheck="false" aria-label="Any emoji">
+      <div class="bip-note">${mac ? 'Press ⌃⌘Space for every emoji' : 'Press Win + . for every emoji'}</div>
+      <div class="memoji">${EMOJI.map(e => `<button data-em="${e}">${e}</button>`).join('')}</div>
+    </div>` : ''}
     <input class="bip-field" type="search" data-q placeholder="Search" spellcheck="false" aria-label="Search icons">
     <div class="lgp-list" data-list></div>
     <div class="bip-pane" data-pane="image" hidden>
@@ -62,7 +75,7 @@ export function showLogoPicker(x, y, { heading = 'Icon', current = null, onPick,
       <input type="file" accept="${R.types.join(',')}" hidden data-file>
     </div>
     <div class="bip-note lgp-note" data-note></div>
-    ${onClear ? `<div class="msep"></div><button class="mi" data-clear>${icon('close', 16)}<span>No icon</span></button>` : ''}
+    ${onClear ? `<div class="msep"></div><button class="mi" data-clear>${icon(clearIcon, 16)}<span>${esc(clearLabel)}</span></button>` : ''}
   </div>`;
   ctxmenu.hidden = false;
   const place = () => {
@@ -71,16 +84,16 @@ export function showLogoPicker(x, y, { heading = 'Icon', current = null, onPick,
   };
   const q = $('[data-q]', ctxmenu), list = $('[data-list]', ctxmenu), note = $('[data-note]', ctxmenu);
   const open = new Set();      // groups opened with "Show all"
-  let tab = current?.startsWith('aws/') ? 'aws' : current?.startsWith('lucide/') ? 'icons' : lastTab;
+  let tab = start || (current?.startsWith('aws/') ? 'aws' : current?.startsWith('lucide/') ? 'icons' : lastTab);
 
   const cell = (ref, title, dark) => `<button data-ref="${esc(ref)}" data-dark="${dark || 0}" title="${esc(title)}"${ref === current ? ' class="on"' : ''}>` +
-    (ref.startsWith('lucide/') ? lucideIcon(ref.slice(7), 22) : `<img src="${esc(logoUrl(ref, dark === 2 && isDark()))}" alt="" loading="lazy" draggable="false"${dark === 1 ? ' class="ic-inv"' : ''}>`) +
+    (ref.startsWith('lucide/') ? lucideIcon(ref.slice(7), 22) : logoImg(ref, dark, ' loading="lazy"')) +
     `<span>${esc(title.replace(/^(Amazon|AWS) (?=\S)/, ''))}</span></button>`;
 
   function draw() {
     const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     note.textContent = '';
-    if (tab === 'image') return;
+    if (tab === 'image' || tab === 'emoji') return;
     if (tab === 'icons') {
       list.innerHTML = '<div class="bip-note">Loading icons…</div>';
       return loadIcons().then(() => {
@@ -122,20 +135,28 @@ export function showLogoPicker(x, y, { heading = 'Icon', current = null, onPick,
     }, () => { list.innerHTML = '<div class="bip-note">Logos couldn’t load. Check your connection.</div>'; });
   }
   function pane(t) {
-    tab = t; if (t !== 'image') lastTab = t;
+    tab = t; if (t !== 'image' && t !== 'emoji') lastTab = t;
     ctxmenu.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
-    $('[data-pane="image"]', ctxmenu).hidden = t !== 'image';
-    q.hidden = list.hidden = t === 'image';
+    ctxmenu.querySelectorAll('[data-pane]').forEach(p => (p.hidden = p.dataset.pane !== t));
+    q.hidden = list.hidden = t === 'image' || t === 'emoji';
     q.placeholder = t === 'aws' ? 'Search AWS (EC2, S3, Lambda, VPC…)' : t === 'icons' ? 'Search icons (server, user, lock…)' : 'Search logos (Postgres, Stripe, Docker…)';
     list.scrollTop = 0;
     // keep the whole picker on screen once its list has filled in
     Promise.resolve(draw()).then(place);
-    if (t !== 'image') q.focus();
+    if (t === 'emoji') $('[data-emoji-in]', ctxmenu).focus();
+    else if (t !== 'image') q.focus();
   }
 
   let timer = 0;
   q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { list.scrollTop = 0; draw(); }, 90); });
   q.addEventListener('keydown', e => { if (e.key === 'Enter') $('[data-ref]', list)?.click(); });
+  const emojiIn = $('[data-emoji-in]', ctxmenu);
+  emojiIn?.addEventListener('input', () => { const em = oneEmoji(emojiIn.value); if (em) { hideMenu(); onEmoji(em); } });
+  emojiIn?.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const em = oneEmoji(emojiIn.value);
+    if (em) { hideMenu(); onEmoji(em); } else toast('Type or paste one emoji');
+  });
 
   const err = $('.bip-err', ctxmenu), file = $('[data-file]', ctxmenu), up = $('[data-upload]', ctxmenu);
   file.addEventListener('change', async () => {
@@ -155,6 +176,8 @@ export function showLogoPicker(x, y, { heading = 'Icon', current = null, onPick,
     if (e.target.closest('[data-upload]')) return file.click();
     const more = e.target.closest('[data-more]');
     if (more) { const k = tab + more.dataset.more; open.has(k) ? open.delete(k) : open.add(k); return draw(); }
+    const em = e.target.closest('[data-em]');
+    if (em) { hideMenu(); return onEmoji(em.dataset.em); }
     const b = e.target.closest('[data-ref]');
     if (b) { hideMenu(); return onPick({ ref: b.dataset.ref, dark: +b.dataset.dark || 0, title: b.title }); }
     if (e.target.closest('[data-clear]')) { hideMenu(); onClear(); }
@@ -173,4 +196,33 @@ export function setIconOf(id, pick) {
   // an icon still named after the old logo takes the new one's name
   if (it.type === 'icon' && pick?.title && (!it.data.label || it.data.label === it.data.auto)) it.data.label = it.data.auto = pick.title;
   save(); rebuildCard(id);
+}
+
+/* ---------- a board card's icon ---------- */
+/** Pick the icon on a board's card: an emoji, a logo, an AWS icon, a plain icon or an uploaded picture. */
+export function showBoardIconPicker(id, x, y) {
+  const d = S.items[id]?.data || {};
+  const set = patch => {
+    const it = S.items[id]; if (!it) return;
+    checkpoint();
+    for (const k of ['emoji', 'icon', 'logo', 'dark', 'asset']) delete it.data[k];
+    Object.assign(it.data, patch);
+    save(); rebuildCard(id);
+    // shortcuts to the board on screen show its icon too
+    for (const s of Object.values(S.items)) if (s.type === 'shortcut' && s.data.target === it.data.target && els.get(s.id)) rebuildCard(s.id);
+  };
+  showLogoPicker(x, y, {
+    heading: 'Board icon',
+    current: d.logo || (d.icon ? 'lucide/' + d.icon : null),
+    tab: d.asset ? 'image' : d.logo?.startsWith('aws/') ? 'aws' : d.logo ? 'logos' : d.icon ? 'icons' : 'emoji',
+    onEmoji: emoji => set({ emoji }),
+    onPick: p => {
+      if (p.asset) set({ asset: p.asset });
+      else if (p.ref.startsWith('lucide/')) set({ icon: p.ref.slice(7) });
+      else set(p.dark ? { logo: p.ref, dark: p.dark } : { logo: p.ref });
+    },
+    onClear: () => set({}),
+    clearLabel: 'Default icon',
+    clearIcon: 'board',
+  });
 }
