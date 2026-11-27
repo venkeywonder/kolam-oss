@@ -39,7 +39,7 @@ export function showMenu(x, y, entries) {
     if (m === '-') return '<div class="msep"></div>';
     if (m.colors) return `<div class="mcolors">${PALETTE.map(p => `<button data-mc="${p.k ?? ''}" title="${p.name}" style="--c:${m.line ? p.line : p.bg}"></button>`).join('')}</div>`;
     if (m.row) return `<div class="mrow">${m.row.map((o, j) => `<button class="mri${o.on ? ' on' : ''}" data-i="${i}" data-j="${j}" title="${o.title}" aria-label="${o.title}" aria-pressed="${!!o.on}">${o.svg || icon(o.icon, 17)}</button>`).join('')}</div>`;
-    return `<button class="mi${m.danger ? ' danger' : ''}" data-i="${i}">${m.svg || (m.icon ? icon(m.icon, 16) : '')}<span>${m.label}</span>${m.kbd ? `<kbd>${m.kbd}</kbd>` : ''}</button>`;
+    return `<button class="mi${m.danger ? ' danger' : ''}" data-i="${i}">${m.svg || (m.icon ? icon(m.icon, 16) : '')}<span>${m.label}${m.dot ? '<i class="mi-dot" aria-label="New"></i>' : ''}</span>${m.kbd ? `<kbd>${m.kbd}</kbd>` : ''}</button>`;
   }).join('');
   ctxmenu.hidden = false;
   const w = ctxmenu.offsetWidth, h = ctxmenu.offsetHeight;

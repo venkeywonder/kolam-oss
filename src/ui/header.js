@@ -123,7 +123,8 @@ export function init() {
   refreshHelp();
   $('#helpBtn').addEventListener('click', e => {
     if (VIEW || !user) return showHelp();
-    menuFrom(e.currentTarget, helpMenuEntries(helpConfig, showHelp, () => $('#helpBtn').classList.remove('has-unread')));
+    const btn = e.currentTarget;
+    menuFrom(btn, helpMenuEntries(helpConfig, showHelp, () => btn.classList.remove('has-unread'), btn.classList.contains('has-unread')));
   });
 
   const wrap = $('#searchWrap'), input = $('#search');

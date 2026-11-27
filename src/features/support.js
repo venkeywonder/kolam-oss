@@ -33,10 +33,11 @@ const FEEDBACK_KINDS = [
   ['praise', 'Praise'],
 ];
 
-/** Builds the ? menu's entries. `onShortcuts` shows keyboard shortcuts; `onWhatsNewSeen` runs once "What's new" is marked read. */
-export function helpMenuEntries(config, onShortcuts, onWhatsNewSeen) {
+/** Builds the ? menu's entries. `onShortcuts` shows keyboard shortcuts; `onWhatsNewSeen` runs once "What's new" is marked read;
+    `unread` puts a red dot on "What's new" (the same one as on the ? button). */
+export function helpMenuEntries(config, onShortcuts, onWhatsNewSeen, unread = false) {
   const m = [{ label: 'Keyboard shortcuts', icon: 'keyboard', kbd: '?', act: onShortcuts }];
-  m.push({ label: "What's new", icon: 'bullets', act: () => openWhatsNew().then(onWhatsNewSeen) });
+  m.push({ label: "What's new", icon: 'bullets', dot: unread, act: () => openWhatsNew().then(onWhatsNewSeen) });
   if (config.site) m.push({ label: 'Help center', icon: 'open', act: () => window.open(config.site + '/help', '_blank', 'noopener') });
   m.push('-');
   m.push({ label: 'Send feedback…', icon: 'edit', act: openFeedback });

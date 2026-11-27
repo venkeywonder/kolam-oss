@@ -2,7 +2,7 @@
 
 ## 2026-11-27
 
-- **Smaller improvements**: every tool in the left toolbar now matches your light or dark theme.
+- **Smaller improvements**: every tool in the left toolbar now matches your light or dark theme, and **What's new** shows a red dot when there's news.
 
 ## 2026-11-26
 
