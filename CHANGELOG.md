@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-27
+
+- **Smaller improvements**: every tool in the left toolbar now matches your light or dark theme.
+
 ## 2026-11-26
 
 - **Polls**: ask a question and let your team vote. Answers can have words, pictures or people, and everyone sees who voted for what.
