@@ -36,10 +36,11 @@
 @keyframes want{50%{box-shadow:0 0 0 2px var(--accent),0 0 0 11px var(--accent-soft),var(--shadow-hover)}}
 .card.missing{opacity:.6}
 .conn{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--card);border:2px solid var(--ink);opacity:0;transform:scale(.6);transition:opacity .15s,transform .15s var(--spring);cursor:crosshair;z-index:3}
-.conn[data-side=right]{right:-7px;top:50%;margin-top:-6.5px}
-.conn[data-side=left]{left:-7px;top:50%;margin-top:-6.5px}
-.conn[data-side=top]{top:-7px;left:50%;margin-left:-6.5px}
-.conn[data-side=bottom]{bottom:-7px;left:50%;margin-left:-6.5px}
+/* offset places the dot's inner edge clear of the .rz strip's outer edge (half-thickness 6px * --iz) by ~3px, so the dot and strip never share pixels at any zoom */
+.conn[data-side=right]{right:calc(-1 * (6px * var(--iz,1) + 16px));top:50%;margin-top:-6.5px}
+.conn[data-side=left]{left:calc(-1 * (6px * var(--iz,1) + 16px));top:50%;margin-top:-6.5px}
+.conn[data-side=top]{top:calc(-1 * (6px * var(--iz,1) + 16px));left:50%;margin-left:-6.5px}
+.conn[data-side=bottom]{bottom:calc(-1 * (6px * var(--iz,1) + 16px));left:50%;margin-left:-6.5px}
 .card:hover>.conn,.card.selected>.conn{opacity:1;transform:scale(1)}
 .conn:hover{transform:scale(1.25)!important;background:var(--ink)}
 .card.editing>.conn,.card.dragging>.conn,.card.t-column.in-col>.conn,.viewonly .conn,.card.in-col>.conn{display:none!important}

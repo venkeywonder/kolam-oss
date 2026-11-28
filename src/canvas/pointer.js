@@ -63,6 +63,7 @@ export function init() {
       return;
     }
     if (e.button !== 0) return;
+    e.preventDefault(); // stop the browser turning a marquee drag into a native text selection
     exitEdit();
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
     const additive = e.shiftKey || e.metaKey;
@@ -91,6 +92,7 @@ export function init() {
     const up = () => {
       marqueeEl.hidden = true;
       refreshSel();
+      window.getSelection()?.removeAllRanges(); // clear any stray native selection left over from the drag
     };
     track(mv, up);
   });

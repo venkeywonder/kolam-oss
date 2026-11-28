@@ -70,21 +70,41 @@ export function openFeedback() {
     <div class="m-actions"><button class="btn ghost" data-close>Cancel</button><button class="btn" data-ok>Send</button></div>`,
     { cls: 'feedback-modal' });
   $('.fb-body', card).focus();
+  const cancelBtn = $('[data-close]', card);
+  const textarea = $('.fb-body', card);
+  const radios = card.querySelectorAll('input[name="fbKind"]');
+  const pageCheck = $('.fb-page input', card);
+  const btn = $('[data-ok]', card);
+  const sendLabel = btn.textContent;
+  let sending = false;
   $('[data-ok]', card).onclick = async () => {
+    if (sending) return;
     const kind = card.querySelector('input[name="fbKind"]:checked')?.value || 'idea';
-    const body = $('.fb-body', card).value.trim();
+    const body = textarea.value.trim();
     if (!body) return toast("Tell us what's on your mind");
-    const includePage = $('.fb-page input', card).checked;
+    const includePage = pageCheck.checked;
     const page = includePage ? location.pathname + location.hash : '';
-    const btn = $('[data-ok]', card);
+    sending = true;
     btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    btn.style.minWidth = btn.offsetWidth + 'px';
+    btn.innerHTML = '<span class="fb-spinner"></span>Sending…';
+    cancelBtn.disabled = true;
+    textarea.disabled = true;
+    for (const r of radios) r.disabled = true;
     try {
       await api('feedback', { method: 'POST', body: { kind, body, page } });
       track('feedback_sent', { kind });
       closeModal();
-      toast('Thanks! We read every message.');
+      toast('Feedback sent. Thanks!');
     } catch (e) {
+      sending = false;
       btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btn.textContent = sendLabel;
+      cancelBtn.disabled = false;
+      textarea.disabled = false;
+      for (const r of radios) r.disabled = false;
       toast(e.message);
     }
   };

@@ -18,6 +18,9 @@
 .fb-body{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:var(--field);
   color:var(--ink);font:inherit;padding:9px 11px;margin-bottom:10px;resize:vertical;min-height:110px}
 .fb-page{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);margin-bottom:4px}
+.fb-spinner{display:inline-block;width:12px;height:12px;margin-right:6px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;vertical-align:-2px;animation:fb-spin .6s linear infinite}
+@keyframes fb-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.fb-spinner{animation:none;opacity:.6}}
 
 /* ---------- cookie banner (EU, EEA, UK and Switzerland); above the sign-in screen (#auth, 500) ---------- */
 #consentBanner{position:fixed;left:16px;bottom:16px;z-index:600;max-width:380px;background:var(--panel);color:var(--ink);border-radius:12px;box-shadow:var(--shadow-lift);padding:14px 16px;font-size:13px;line-height:1.45}

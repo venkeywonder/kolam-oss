@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-28
+
+- **Smaller improvements**: connection dots sit clear of a card's resize edges, deleting every card no longer leaves the empty-board buttons highlighted, and Send feedback shows that it's sending.
+
 ## 2026-11-27
 
 - **Smaller improvements**: every tool in the left toolbar now matches your light or dark theme, and **What's new** shows a red dot when there's news.
